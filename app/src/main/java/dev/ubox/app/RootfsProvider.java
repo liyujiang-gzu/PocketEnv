@@ -76,7 +76,16 @@ public final class RootfsProvider extends DocumentsProvider {
           row.add("容器文件与个人数据");
           break;
         case Root.COLUMN_FLAGS:
-          row.add(Root.FLAG_LOCAL_ONLY);
+          // 不能只给 FLAG_LOCAL_ONLY：它只向系统 DocumentsUI 区分「本地/云端」，
+          // 不含可操作语义。MT 管理器等第三方文件管理器会按 root 是否声明可创建
+          // 等能力来过滤，只读 root 会被从 SAF 列表里过滤掉（系统自带文件管理器
+          // 更宽松，照列不误）。这里参照 Termux 补上 FLAG_SUPPORTS_CREATE 和
+          // FLAG_SUPPORTS_IS_CHILD（Root 级别没有 WRITE/DELETE 常量，可写性由各
+          // document 的 flags 与 createDocument/openDocument 的 writable() 把关，
+          // 仅 /root 可写）。
+          row.add(Root.FLAG_LOCAL_ONLY
+              | Root.FLAG_SUPPORTS_CREATE
+              | Root.FLAG_SUPPORTS_IS_CHILD);
           break;
         case Root.COLUMN_ICON:
           row.add(R.drawable.ic_launcher);
