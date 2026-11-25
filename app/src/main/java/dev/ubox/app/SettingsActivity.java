@@ -90,21 +90,22 @@ public class SettingsActivity extends Activity {
         apt("build", "编译工具链", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
     new Section(
         "AI Agent（需要 Node.js，未安装时会自动先装）",
+        npm("opencode", "OpenCode", "npm @opencode/cli", "opencode", "@opencode/cli"),
         npm("claude", "Claude Code", "Anthropic · npm @anthropic-ai/claude-code", "claude",
             "@anthropic-ai/claude-code"),
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
         npm("gemini", "Gemini CLI", "Google · npm @google/gemini-cli", "gemini",
             "@google/gemini-cli"),
-        npm("opencode", "OpenCode", "npm opencode-ai", "opencode", "opencode-ai")),
+        npm("kilocode", "KiloCode", "npm @kilocode/cli", "kilocode", "@kilocode/cli")),
   };
 
   /** 「一键安装推荐」包含的条目。 */
-  private static final String[] RECOMMENDED = {"net", "cli", "editor", "git"};
+  private static final String[] RECOMMENDED = {"net", "cli", "git"};
 
   private static final String[][] MIRRORS = {
-    {"official", "Ubuntu 官方", "ports.ubuntu.com"},
-    {"tuna", "清华 TUNA", "mirrors.tuna.tsinghua.edu.cn"},
-    {"ustc", "中科大 USTC", "mirrors.ustc.edu.cn"},
+    {"official", "官方（默认）", "ports.ubuntu.com"},
+    {"tuna", "清华（中国大陆推荐）", "mirrors.tuna.tsinghua.edu.cn"},
+    {"ustc", "中科大", "mirrors.ustc.edu.cn"},
     {"aliyun", "阿里云", "mirrors.aliyun.com"},
   };
 
@@ -157,7 +158,7 @@ public class SettingsActivity extends Activity {
     buildSshSection(list);
 
     Button recommended = new Button(this);
-    recommended.setText("一键安装推荐（网络工具 + 常用命令 + 编辑器 + Git）");
+    recommended.setText("一键安装推荐（网络工具 + 常用命令 + Git）");
     recommended.setAllCaps(false);
     recommended.setOnClickListener(v -> installRecommended());
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
