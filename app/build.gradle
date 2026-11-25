@@ -19,11 +19,14 @@ android {
 
     signingConfigs {
         debug {
-            // 显式开启 v1/v2/v3 签名（release 复用此配置）。
-            // v3（PKCS#7，Android 9+）支持密钥轮换，是新版 Android 推荐的签名方案。
-            enableV1Signing true
+            // 只启用 v2/v3 签名（release 复用此配置）。
+            // v2：APK 全文件签名，Android 7+ 必须；v3（PKCS#7）：支持密钥轮换，Android 9+ 推荐。
+            // v1（JAR 签名）仅 Android 6 及以下需要，本项目 minSdk 26 用不到；
+            // v4（增量安装签名）按需开启，这里不需要。
+            enableV1Signing false
             enableV2Signing true
             enableV3Signing true
+            enableV4Signing false
         }
     }
 
