@@ -90,13 +90,12 @@ public class SettingsActivity extends Activity {
         apt("build", "编译工具链", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
     new Section(
         "AI Agent（需要 Node.js，未安装时会自动先装）",
-        npm("opencode", "OpenCode", "npm @opencode/cli", "opencode", "@opencode/cli"),
+        npm("opencode", "OpenCode", "OpenCode · npm @opencode/cli-linux-arm64", "opencode", "@opencode/cli-linux-arm64"),
         npm("claude", "Claude Code", "Anthropic · npm @anthropic-ai/claude-code", "claude",
             "@anthropic-ai/claude-code"),
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
         npm("gemini", "Gemini CLI", "Google · npm @google/gemini-cli", "gemini",
-            "@google/gemini-cli"),
-        npm("kilocode", "KiloCode", "npm @kilocode/cli", "kilocode", "@kilocode/cli")),
+            "@google/gemini-cli")),
   };
 
   /** 「一键安装推荐」包含的条目。 */
