@@ -18,10 +18,18 @@
 | 文件 | 作用 |
 | --- | --- |
 | `Rootfs.java` | 首次启动时把 APK 内的 rootfs 解压到 `files/ubox/rootfs`，写入 DNS、apt、Android 补充组等配置；每次启动时刷新辅助脚本 |
+| `RootfsProvider.java` | SAF DocumentsProvider，把 rootfs 暴露成文件管理器里的「UbuntuBox」存储；除 `/root` 外只读 |
 | `Proot.java` | 组装 proot 命令行（自动检测是否需要 `--link2symlink`，Android 无权读取 `/proc/stat` 等文件时绑定假数据），guest 内用 `env -i` 重建干净的环境 |
 | `TerminalService.java` | 前台服务，持有所有终端会话，切到后台后继续运行；支持保持 CPU 唤醒 |
 | `MainActivity.java` | 安装进度、终端界面、额外按键（ESC/TAB/CTRL/ALT/方向键…）、多会话 |
 | `assets/guest/` | 安装进 Ubuntu 的辅助脚本：`ubox-mirror`、`ubox-node`、Node 兼容补丁 |
+
+## 在文件管理器里访问 Ubuntu
+
+菜单 →「授权访问 ubuntu」会打开系统文件管理器并定位到 rootfs。也可以在任意支持 SAF
+的文件管理器（系统「文件」、MT 管理器、Solid Explorer 等）的存储列表里找到「UbuntuBox」，
+浏览和复制文件。除 `/root` 外都是只读的，`/root` 可直接新建、修改、删除和改名，
+适合把文件拷进拷出；rootfs 必须留在应用内部存储，/sdcard 的 FUSE 不支持符号链接和执行权限。
 
 ## 在里面装 Agent
 

@@ -6,6 +6,7 @@
     <item android:id="@+id/menu_keyboard" android:title="键盘" />
     <item android:id="@+id/menu_wakelock" android:title="保持 CPU 唤醒" android:checkable="true" />
     <item android:id="@+id/menu_storage" android:title="授权访问 /sdcard" />
+    <item android:id="@+id/menu_ubuntu" android:title="授权访问 ubuntu" />
     <item android:id="@+id/menu_reset" android:title="重置 Ubuntu 环境…" />
     <item android:id="@+id/menu_exit" android:title="退出并结束所有会话" />
 </menu>

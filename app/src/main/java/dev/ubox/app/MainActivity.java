@@ -17,6 +17,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
+import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.TypedValue;
@@ -224,6 +225,7 @@ public class MainActivity extends Activity {
     else if (id == R.id.menu_keyboard) showKeyboard();
     else if (id == R.id.menu_wakelock && service != null) service.setWakeLock(!item.isChecked());
     else if (id == R.id.menu_storage) requestStorage();
+    else if (id == R.id.menu_ubuntu) openUbuntuInFileManager();
     else if (id == R.id.menu_reset) confirmReset();
     else if (id == R.id.menu_exit && service != null) service.exit();
     else return super.onOptionsItemSelected(item);
@@ -268,6 +270,31 @@ public class MainActivity extends Activity {
     startActivity(
         new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
             .setData(Uri.parse("package:" + getPackageName())));
+  }
+
+  /** 打开系统文件管理器并定位到 rootfs；不支持时退回 SAF 目录选择器。 */
+  private void openUbuntuInFileManager() {
+    if (!new Rootfs(this).rootfs.isDirectory()) {
+      Toast.makeText(this, "Ubuntu 环境还没有安装", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    try {
+      startActivity(
+          new Intent(Intent.ACTION_VIEW)
+              .setDataAndType(RootfsProvider.rootUri(), DocumentsContract.Document.MIME_TYPE_DIR));
+      return;
+    } catch (android.content.ActivityNotFoundException notAFilesApp) {
+      // 部分文件管理器不处理 ACTION_VIEW，改用 SAF 选择器
+    }
+    try {
+      startActivity(
+          new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+              .putExtra(DocumentsContract.EXTRA_INITIAL_URI, RootfsProvider.rootUri()));
+      Toast.makeText(this, "文件管理器的“UbuntuBox”里可浏览整个 Ubuntu 环境", Toast.LENGTH_LONG)
+          .show();
+    } catch (android.content.ActivityNotFoundException unavailable) {
+      Toast.makeText(this, "没有找到支持 SAF 的文件管理器", Toast.LENGTH_LONG).show();
+    }
   }
 
   private void confirmReset() {

@@ -42,5 +42,17 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps user-started Linux terminal sessions running" />
         </service>
+
+        <!-- 把 rootfs 作为只读存储提供给文件管理器（SAF） -->
+        <provider
+            android:name=".RootfsProvider"
+            android:authorities="dev.ubox.app.rootfs"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
     </application>
 </manifest>
