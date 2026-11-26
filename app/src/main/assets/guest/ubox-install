@@ -4,6 +4,7 @@
 #   ubox-install npm <包...>      ubox-install npm-remove <包...>
 #   ubox-install node [主版本]
 #   ubox-install uv
+#   ubox-install go
 set -uo pipefail
 export DEBIAN_FRONTEND=noninteractive
 umask 022
@@ -37,6 +38,26 @@ case "$kind" in
     curl -LsSf https://astral.sh/uv/install.sh | sh
     command -v uv >/dev/null 2>&1 || ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv
     uv --version
+    ;;
+  go)
+    # Go 走官方 linux-arm64 tarball（apt 的 golang-go 版本旧）。解压到 /usr/local/go，
+    # 软链 go 到 /usr/local/bin。优先 Go 官方中国站，失败回退阿里云镜像。
+    GO_VER=1.27.4
+    GO_TGZ="go${GO_VER}.linux-arm64.tar.gz"
+    GO_SHA=3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92
+    if command -v go >/dev/null 2>&1; then echo "==> Go 已安装: $(go version)"; exit 0; fi
+    echo "==> 下载 Go ${GO_VER} (linux-arm64)"
+    tmp=$(mktemp -d)
+    for base in "https://golang.google.cn/dl" "https://mirrors.aliyun.com/golang"; do
+      echo "==> 尝试 ${base}"
+      if curl -fL "$base/$GO_TGZ" -o "$tmp/$GO_TGZ"; then break; fi
+    done
+    echo "==> 校验 sha256"
+    echo "${GO_SHA}  $tmp/$GO_TGZ" | sha256sum -c - || { rm -rf "$tmp"; exit 1; }
+    rm -rf /usr/local/go && tar -C /usr/local -xzf "$tmp/$GO_TGZ" && rm -rf "$tmp"
+    ln -sf /usr/local/go/bin/go /usr/local/bin/go
+    ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+    go version
     ;;
   *) echo "未知类型: $kind"; exit 2 ;;
 esac

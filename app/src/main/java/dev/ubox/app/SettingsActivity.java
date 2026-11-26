@@ -28,7 +28,7 @@ public class SettingsActivity extends Activity {
   static final String EXTRA_COMMAND = "command";
   private static final String TAG = "UbuntuBox";
 
-  enum Kind { APT, NODE, NPM, UV }
+  enum Kind { APT, NODE, NPM, UV, GO }
 
   /** packages：apt/npm 包名；check：NODE/NPM 用来判断是否已安装的命令名。 */
   record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
@@ -46,6 +46,7 @@ public class SettingsActivity extends Activity {
               + "; [ -x \"$f\" ] && ln -sf \"$f\" /usr/local/bin/" + bin
               + " && echo 已为 " + bin + " 创建命令链接 || echo 未找到 " + bin + " 二进制; }";
         case UV: return "ubox-install uv";
+        case GO: return "ubox-install go";
         default: return "ubox-install node";
       }
     }
@@ -56,6 +57,8 @@ public class SettingsActivity extends Activity {
         case NPM: return "ubox-install npm-remove " + String.join(" ", packages);
         case UV: return "rm -f /usr/local/bin/uv \"$HOME/.local/bin/uv\" \"$HOME/.local/bin/uvx\""
             + " && echo 已卸载 uv";
+        case GO: return "rm -rf /usr/local/go /usr/local/bin/go /usr/local/bin/gofmt"
+            + " && echo 已卸载 Go";
         default: return "rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx"
             + " /usr/local/bin/corepack /usr/local/lib/node_modules/npm /usr/local/include/node"
             + " && echo 已卸载 Node.js";
@@ -72,6 +75,11 @@ public class SettingsActivity extends Activity {
         // command -v uv 可能找不到，故再回退检查 ~/.local/bin/uv 是否存在。
         return "if command -v uv >/dev/null 2>&1 || [ -x \"$HOME/.local/bin/uv\" ]; "
             + "then echo " + id + "=1; else echo " + id + "=0; fi";
+      if (kind == Kind.GO)
+        // Go tarball 装到 /usr/local/go 并软链 go 到 /usr/local/bin。软链在 PATH 里，
+        // command -v go 通常能命中；再回退检查 /usr/local/go/bin/go 兜底。
+        return "if command -v go >/dev/null 2>&1 || [ -x /usr/local/go/bin/go ]; "
+            + "then echo " + id + "=1; else echo " + id + "=0; fi";
       return "command -v " + check + " >/dev/null 2>&1 && echo " + id + "=1 || echo " + id + "=0";
     }
   }
@@ -84,6 +92,10 @@ public class SettingsActivity extends Activity {
 
   private static Tool npm(String id, String title, String summary, String bin, String pkg) {
     return new Tool(id, title, summary, Kind.NPM, new String[] {pkg}, bin);
+  }
+
+  private static Tool go(String id, String title, String summary) {
+    return new Tool(id, title, summary, Kind.GO, new String[0], "go");
   }
 
   static final Section[] SECTIONS = {
@@ -104,7 +116,8 @@ public class SettingsActivity extends Activity {
         apt("python", "Python 3", "python3、pip、venv；AI 时代的著名语言", "python3", "python3-pip", "python3-venv"),
         new Tool("uv", "uv", "Astral 出品的高速 Python 包管理器（替代 pip/venv），需先装 Python 3",
             Kind.UV, new String[0], "uv"),
-        apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
+        apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential"),
+        go("golang", "Go", "官方 linux-arm64 tarball（golang.google.cn 镜像），含 go、gofmt")),
     new Section(
         "AI Agent（需要 Node.js）",
         npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli", "opencode", "@opencode/cli"),
