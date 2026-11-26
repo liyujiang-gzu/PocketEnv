@@ -3,10 +3,7 @@ package dev.ubox.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.os.Bundle;
-import android.util.TypedValue;
-import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -25,20 +22,17 @@ public class LicensesActivity extends Activity {
     {"ubuntu-box (biyan113)", "MIT", "https://github.com/biyan113/ubuntu-box", null},
   };
 
-  private float density;
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    density = getResources().getDisplayMetrics().density;
 
     LinearLayout list = new LinearLayout(this);
     list.setOrientation(LinearLayout.VERTICAL);
-    list.setPadding(dp(16), dp(8), dp(16), dp(24));
+    list.setPadding(UiViews.dp(this, 16), UiViews.dp(this, 8), UiViews.dp(this, 16), UiViews.dp(this, 24));
 
     for (int i = 0; i < THIRD_PARTY.length; i++) {
-      LinearLayout componentRow = row(THIRD_PARTY[i][0]);
-      subtitle(componentRow).setText(THIRD_PARTY[i][1] + " · " + THIRD_PARTY[i][2]);
+      LinearLayout componentRow = UiViews.row(this, THIRD_PARTY[i][0], null);
+      UiViews.subtitle(componentRow).setText(THIRD_PARTY[i][1] + " · " + THIRD_PARTY[i][2]);
       componentRow.setOnClickListener(v -> showLicenseDetail(THIRD_PARTY[i]));
       list.addView(componentRow);
     }
@@ -49,7 +43,7 @@ public class LicensesActivity extends Activity {
     Toolbar toolbar = new Toolbar(this);
     toolbar.setBackgroundColor(0xFF1E1E1E);
     toolbar.setTitleTextColor(Color.WHITE);
-    toolbar.setMinimumHeight(dp(48));
+    toolbar.setMinimumHeight(UiViews.dp(this, 48));
 
     LinearLayout root = new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
@@ -91,9 +85,9 @@ public class LicensesActivity extends Activity {
     }
 
     ScrollView scroll = new ScrollView(this);
-    TextView view = text(body.toString(), 13, 0xFFDDDDDD);
+    TextView view = UiViews.text(this, body.toString(), 13, 0xFFDDDDDD);
     view.setTextIsSelectable(true);
-    view.setPadding(dp(16), dp(12), dp(16), dp(12));
+    view.setPadding(UiViews.dp(this, 16), UiViews.dp(this, 12), UiViews.dp(this, 16), UiViews.dp(this, 12));
     scroll.addView(view);
 
     new AlertDialog.Builder(this)
@@ -103,39 +97,4 @@ public class LicensesActivity extends Activity {
         .show();
   }
 
-  // ---------------------------------------------------------------- 视图
-
-  private LinearLayout row(String title) {
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(Gravity.CENTER_VERTICAL);
-    row.setPadding(0, dp(10), 0, dp(10));
-    TypedValue ripple = new TypedValue();
-    getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
-    row.setBackgroundResource(ripple.resourceId);
-
-    LinearLayout texts = new LinearLayout(this);
-    texts.setOrientation(LinearLayout.VERTICAL);
-    texts.addView(text(title, 16, Color.WHITE));
-    texts.addView(text("", 13, 0xFF9E9E9E));
-    row.addView(texts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-    return row;
-  }
-
-  private TextView subtitle(LinearLayout row) {
-    return (TextView) ((LinearLayout) row.getChildAt(0)).getChildAt(1);
-  }
-
-  private TextView text(String value, int sp, int color) {
-    TextView view = new TextView(this);
-    view.setText(value);
-    view.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-    view.setTextColor(color);
-    view.setTypeface(Typeface.DEFAULT);
-    return view;
-  }
-
-  private int dp(int value) {
-    return Math.round(value * density);
-  }
 }

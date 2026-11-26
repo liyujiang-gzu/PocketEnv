@@ -9,7 +9,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -231,12 +230,10 @@ public class SettingsActivity extends Activity {
         }
       };
   private Proot proot;
-  private float density;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    density = getResources().getDisplayMetrics().density;
     proot = new Proot(this, new Rootfs(this));
 
     LinearLayout list = new LinearLayout(this);
@@ -934,7 +931,7 @@ public class SettingsActivity extends Activity {
   }
 
   private TextView subtitle(LinearLayout row) {
-    return (TextView) ((LinearLayout) row.getChildAt(0)).getChildAt(1);
+    return UiViews.subtitle(row);
   }
 
   // ---------------------------------------------------------------- 视图
@@ -947,21 +944,7 @@ public class SettingsActivity extends Activity {
   }
 
   private LinearLayout row(String title, View action) {
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(Gravity.CENTER_VERTICAL);
-    row.setPadding(0, dp(10), 0, dp(10));
-    TypedValue ripple = new TypedValue();
-    getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
-    row.setBackgroundResource(ripple.resourceId);
-
-    LinearLayout texts = new LinearLayout(this);
-    texts.setOrientation(LinearLayout.VERTICAL);
-    texts.addView(text(title, 16, Color.WHITE));
-    texts.addView(text("", 13, 0xFF9E9E9E));
-    row.addView(texts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-    if (action != null) row.addView(action);
-    return row;
+    return UiViews.row(this, title, action);
   }
 
   private Button actionButton() {
@@ -978,14 +961,10 @@ public class SettingsActivity extends Activity {
   }
 
   private TextView text(String value, int sp, int color) {
-    TextView view = new TextView(this);
-    view.setText(value);
-    view.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-    view.setTextColor(color);
-    return view;
+    return UiViews.text(this, value, sp, color);
   }
 
   private int dp(int value) {
-    return (int) (value * density);
+    return UiViews.dp(this, value);
   }
 }

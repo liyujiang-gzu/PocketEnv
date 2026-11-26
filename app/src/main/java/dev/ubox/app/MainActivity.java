@@ -193,13 +193,22 @@ public class MainActivity extends Activity {
     setTitle(session.isRunning() ? name : name + "（已退出，回车关闭）");
   }
 
+  /** 删除会话后统一选择接替会话；返回是否因没有剩余会话而新建了会话。 */
+  private boolean afterSessionRemoved(boolean wasCurrent) {
+    List<TerminalSession> sessions = service == null ? List.of() : service.sessions();
+    if (sessions.isEmpty()) {
+      newSession();
+      return true;
+    }
+    if (wasCurrent) attach(sessions.get(sessions.size() - 1));
+    return false;
+  }
+
   /** 已退出的会话保留输出，按回车后才关闭，便于看到错误信息。 */
   private boolean closeIfFinished(TerminalSession session) {
     if (session == null || session.isRunning() || service == null) return false;
     service.removeSession(session);
-    List<TerminalSession> sessions = service.sessions();
-    if (sessions.isEmpty()) newSession();
-    else attach(sessions.get(sessions.size() - 1));
+    afterSessionRemoved(true);
     return true;
   }
 
@@ -279,7 +288,6 @@ public class MainActivity extends Activity {
           List<TerminalSession> sessions = service.sessions();
           if (sessions.isEmpty()) {
             dialog.dismiss();
-            newSession();
             return;
           }
           for (TerminalSession session : List.copyOf(sessions)) {
@@ -322,19 +330,33 @@ public class MainActivity extends Activity {
 
     Button deleteButton = new Button(this);
     deleteButton.setText("删除");
+    deleteButton.setTextColor(0xFFE57373);
     deleteButton.setMinimumWidth(0);
     deleteButton.setOnClickListener(v -> deleteSession(session, dialog, refresh));
     row.addView(deleteButton);
     return row;
   }
 
-  /** 删除会话；删的是当前会话时切到最后一个，全部删完则新建一个。 */
+  /** 删除会话；运行中的会话先确认，避免误点终止正在执行的安装或编译。 */
   private void deleteSession(TerminalSession session, AlertDialog dialog, Runnable refresh) {
+    if (service == null) return;
+    if (session.isRunning()) {
+      new AlertDialog.Builder(this)
+          .setTitle("删除运行中的会话？")
+          .setMessage("将终止该会话正在执行的命令（如安装或编译），未保存的输出会丢失。")
+          .setNegativeButton("取消", null)
+          .setPositiveButton("删除", (d, which) -> doDeleteSession(session, dialog, refresh))
+          .show();
+      return;
+    }
+    doDeleteSession(session, dialog, refresh);
+  }
+
+  private void doDeleteSession(TerminalSession session, AlertDialog dialog, Runnable refresh) {
     if (service == null) return;
     boolean current = session == terminalView.getCurrentSession();
     service.removeSession(session);
-    List<TerminalSession> remaining = service.sessions();
-    if (current && !remaining.isEmpty()) attach(remaining.get(remaining.size() - 1));
+    if (afterSessionRemoved(current)) dialog.dismiss();
     refresh.run();
   }
 
