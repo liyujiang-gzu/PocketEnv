@@ -1,0 +1,182 @@
+#!/bin/bash
+# Android SDK 安装（设置页「Android SDK」项）。用法:
+#   ubox-android-sdk          安装 platforms;android-36 + build-tools;36.0.0
+#   ubox-android-sdk remove    卸载（删除 /opt/android-sdk 及相关配置）
+#
+# 只装编译必需的两件：platform（android.jar 等纯数据）和 build-tools。
+# 不含 system image、source、platform-tools。
+set -uo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+SDK=/opt/android-sdk
+PLATFORM_DIR=android-36
+BT_DIR=36.0.0
+PROFILE_SCRIPT=/etc/profile.d/ubox-android-sdk.sh
+GRADLE_PROPS="$HOME/.gradle/gradle.properties"
+
+# 官方包（腾讯云镜像与 Google 官方内容一致，sha256 已核对）
+PLAT_ZIP="platform-36_r02.zip"
+PLAT_SHA="37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e"
+BT_ZIP="build-tools_r36_linux.zip"
+BT_SHA="5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b"
+
+# Google 官方 build-tools 的 linux 包只发 x86_64 原生工具，arm64 上会 exec format error。
+# 下面四个是 AGP 编译时真正调用的原生工具，用 AOSP 源码编的 arm64 版本替换；
+# 其余工具（dexdump、renderscript 的 lld 等）AGP 编译 APK 用不到，会删掉。
+# sha256 来自上游 release 的 SHA256SUMS（按单独二进制资产核对）。
+# https://github.com/Commit451/android-arm-build-tools/releases/tag/platform-tools-36.0.0
+ARM_REPO="Commit451/android-arm-build-tools"
+ARM_TAG="platform-tools-36.0.0"
+declare -A ARM_ASSET_ID=(
+  [aapt2]=426758025
+  [aidl]=426758026
+  [zipalign]=426758022
+  [split-select]=426758027
+)
+declare -A ARM_TOOL_SHA=(
+  [aapt2]="7512ff7e381bea6fd310b6f6e347422c8fda21e07c6e3f0162742e95eb9d7f98"
+  [aidl]="8c97356b8bba8f7aad44cfd408e3ee24c66a1258244b5d08af1c9249f50dd659"
+  [zipalign]="e8856fb24b10095eb6e940c577ce96d89ddbfc45aa0f7eeaef1597ef68f11a12"
+  [split-select]="fb7f0c3c87dbd4243d7e1277ba64ded2399389244058b6a4c969cc615360766c"
+)
+
+# download <目标文件> <期望 sha256> <源...>：按顺序尝试，校验通过即算成功
+download() {
+  local dest="$1" want="$2"; shift 2
+  for src in "$@"; do
+    echo "==> 下载 $(basename "$dest")（${src#https://}）"
+    curl -fL --connect-timeout 15 --retry 2 -o "$dest" "$src" || continue
+    if echo "${want}  $dest" | sha256sum -c --quiet -; then return 0; fi
+    echo "==> sha256 校验失败，换下一个源"
+  done
+  return 1
+}
+
+remove_sdk() {
+  rm -rf "$SDK" "$PROFILE_SCRIPT"
+  [ -f "$GRADLE_PROPS" ] && sed -i '/^android\.aapt2FromMavenOverride=/d' "$GRADLE_PROPS"
+  echo "已卸载 Android SDK"
+}
+
+if [ "${1:-}" = remove ]; then remove_sdk; exit 0; fi
+
+# AGP 9 需要 JVM 17+；platform 是纯数据，但装完就得能编译，故先保证 Java 在
+command -v java >/dev/null 2>&1 ||
+  { echo "==> 需要 Java 17+，先安装 OpenJDK 17"; ubox-install apt openjdk-17-jdk-headless; }
+command -v unzip >/dev/null 2>&1 || ubox-install apt unzip
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# 1) platform-36：android.jar、stub 源码、资源模板，全是数据，架构无关
+echo "==> 下载 platform-36"
+download "$tmp/$PLAT_ZIP" "$PLAT_SHA" \
+  "https://mirrors.cloud.tencent.com/AndroidSDK/$PLAT_ZIP" \
+  "https://dl.google.com/android/repository/$PLAT_ZIP" || exit 1
+mkdir -p "$SDK/platforms"
+rm -rf "$SDK/platforms/$PLATFORM_DIR"
+unzip -q "$tmp/$PLAT_ZIP" -d "$tmp/platform"
+mv "$tmp/platform/$PLATFORM_DIR" "$SDK/platforms/$PLATFORM_DIR"
+
+# 2) build-tools 骨架：apksigner、d8 等 Java 部分（zip 内顶层目录名是 AOSP 平台号 android-16）
+echo "==> 下载 build-tools ${BT_DIR}"
+download "$tmp/$BT_ZIP" "$BT_SHA" \
+  "https://mirrors.cloud.tencent.com/AndroidSDK/$BT_ZIP" \
+  "https://dl.google.com/android/repository/$BT_ZIP" || exit 1
+mkdir -p "$SDK/build-tools"
+rm -rf "$SDK/build-tools/$BT_DIR"
+unzip -q "$tmp/$BT_ZIP" -d "$tmp/build-tools"
+mv "$tmp/build-tools/android-16" "$SDK/build-tools/$BT_DIR"
+
+# 3) 用 arm64 版替换四个原生工具；每个都先试 GitHub API（换取新鲜的资产直链，
+#    不经 github.com 的 302），再试国内代理，最后 GitHub 直连。校验值来自上游
+#    release 的 SHA256SUMS（按单独二进制资产核对）。
+for tool in aapt2 aidl zipalign split-select; do
+  echo "==> 下载 arm64 版 $tool"
+  download "$tmp/$tool" "${ARM_TOOL_SHA[$tool]}" \
+    "https://api.github.com/repos/$ARM_REPO/releases/assets/${ARM_ASSET_ID[$tool]}" \
+    "https://gh-proxy.com/https://github.com/$ARM_REPO/releases/download/$ARM_TAG/$tool" \
+    "https://ghfast.top/https://github.com/$ARM_REPO/releases/download/$ARM_TAG/$tool" \
+    "https://github.com/$ARM_REPO/releases/download/$ARM_TAG/$tool" || exit 1
+  install -m 755 "$tmp/$tool" "$SDK/build-tools/$BT_DIR/$tool"
+done
+
+# 官方 zip 里剩下的 host 二进制（dexdump、renderscript 的 lld 等）都是 x86_64，
+# ARM64 上跑不起来；AGP 编译 APK 用不到，删掉比留个坏的强。用 ELF 头的
+# e_machine（偏移 0x12，小端）判断：x86_64=0x3E，aarch64=0xB7。
+while IFS= read -r f; do
+  magic=$(head -c4 "$f" | od -An -tx1 | tr -d ' \n')
+  [ "$magic" = "7f454c46" ] || continue
+  case "$(od -An -tx1 -j18 -N2 "$f" | tr -d ' \n')" in
+    3e00) echo "==> 删除 x86_64 二进制: ${f#$SDK/build-tools/$BT_DIR/}"; rm -f "$f" ;;
+  esac
+done < <(find "$SDK/build-tools/$BT_DIR" -type f)
+
+# 4) 官方 zip 不带 package.xml，AGP 认不出这个包，补一份
+cat > "$SDK/platforms/$PLATFORM_DIR/package.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:repository xmlns:ns2="http://schemas.android.com/repository/android/common/02"
+                xmlns:ns3="http://schemas.android.com/repository/android/platform/02">
+  <localPackage path="platforms;android-36" obsolete="false">
+    <type-details xsi:type="ns3:platformDetailsType"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  api-level="36" min-tools-rev="22"/>
+    <revision><major>36</major><minor>0</minor><micro>2</micro></revision>
+    <display-name>Android SDK Platform 36</display-name>
+    <uses-license ref="android-sdk-license"/>
+  </localPackage>
+</ns2:repository>
+EOF
+
+cat > "$SDK/build-tools/$BT_DIR/package.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:repository xmlns:ns2="http://schemas.android.com/repository/android/common/02"
+                xmlns:ns3="http://schemas.android.com/repository/android/generic/02">
+  <localPackage path="build-tools;36.0.0" obsolete="false">
+    <type-details xsi:type="ns3:genericDetailsType"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
+    <revision><major>36</major><minor>0</minor><micro>0</micro></revision>
+    <display-name>Android SDK Build-Tools 36.0.0</display-name>
+    <uses-license ref="android-sdk-license"/>
+  </localPackage>
+</ns2:repository>
+EOF
+
+# 5) 预先接受许可，省得 sdkmanager --licenses 交互（每个文件首行必须为空行）
+mkdir -p "$SDK/licenses"
+cat > "$SDK/licenses/android-sdk-license" <<'EOF'
+
+8933bad161af4178b1185d1a37fbf41ea5269c55
+d56f5187479451eabf01fb78af6dfcb131a6481e
+24333f8a63b6825ea9c5514f83c2829b004d1fee
+EOF
+cat > "$SDK/licenses/android-sdk-preview-license" <<'EOF'
+
+84831b9409646a918e30573bab4c9c91346d8abd
+504667f4c0de7af1a06de9f4b1727b84351f2910
+EOF
+cat > "$SDK/licenses/android-sdk-arm-dbt-license" <<'EOF'
+
+859f317696f67ef3d7f30a50a5560e7834b43903
+EOF
+
+# 6) 环境变量：ANDROID_HOME 和 build-tools 的 PATH
+cat > "$PROFILE_SCRIPT" <<EOF
+export ANDROID_HOME=$SDK
+export PATH="\$ANDROID_HOME/build-tools/$BT_DIR:\$PATH"
+[ -d /usr/lib/jvm/java-17-openjdk-arm64 ] && export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+EOF
+
+# 7) AGP 9 自带 aapt2 是 x86_64，指定用上面装的 arm64 版（AGP 8 及以下不用改）
+mkdir -p "$(dirname "$GRADLE_PROPS")"
+if [ -f "$GRADLE_PROPS" ]; then
+  sed -i '/^android\.aapt2FromMavenOverride=/d' "$GRADLE_PROPS"
+fi
+echo "android.aapt2FromMavenOverride=$SDK/build-tools/$BT_DIR/aapt2" >> "$GRADLE_PROPS"
+
+echo "==> 验证（需要 ARM64 且 glibc >= 2.34）"
+"$SDK/build-tools/$BT_DIR/aapt2" version || exit 1
+echo
+echo "ANDROID_HOME=$SDK"
+echo "platform: $SDK/platforms/$PLATFORM_DIR"
+echo "build-tools: $SDK/build-tools/$BT_DIR（aapt2/aidl/zipalign/split-select 为 arm64 版）"

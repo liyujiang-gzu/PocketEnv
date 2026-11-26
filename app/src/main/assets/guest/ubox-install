@@ -6,6 +6,7 @@
 #   ubox-install uv
 #   ubox-install go
 #   ubox-install gradle
+#   ubox-install android-sdk [remove]
 set -uo pipefail
 export DEBIAN_FRONTEND=noninteractive
 umask 022
@@ -101,6 +102,7 @@ case "$kind" in
     ln -sf /usr/local/gradle/bin/gradle /usr/local/bin/gradle
     gradle --version
     ;;
+  android-sdk) ubox-android-sdk "$@" ;;
   *) echo "未知类型: $kind"; exit 2 ;;
 esac
 rc=$?
