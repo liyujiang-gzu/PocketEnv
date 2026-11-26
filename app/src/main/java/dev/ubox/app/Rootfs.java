@@ -161,6 +161,7 @@ final class Rootfs {
     mkdirs(tmp);
     File local = new File(rootfs, "usr/local/bin");
     writeAsset(context, "guest/ubox-mirror", new File(local, "ubox-mirror"), 0755);
+    writeAsset(context, "guest/ubox-npm-registry", new File(local, "ubox-npm-registry"), 0755);
     writeAsset(context, "guest/ubox-node", new File(local, "ubox-node"), 0755);
     writeAsset(context, "guest/ubox-install", new File(local, "ubox-install"), 0755);
     writeAsset(context, "guest/ubox-sshd", new File(local, "ubox-sshd"), 0755);

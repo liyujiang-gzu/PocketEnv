@@ -117,9 +117,17 @@ public class SettingsActivity extends Activity {
     {"aliyun", "阿里云", "mirrors.aliyun.com"},
   };
 
+  /** npm 源（registry）：id、名称、URL。切换走 ubox-npm-registry。 */
+  private static final String[][] NPM_REGISTRIES = {
+    {"official", "官方", "https://registry.npmjs.org"},
+    {"aliyun", "阿里云（推荐）", "https://registry.npmmirror.com"},
+    {"tencent", "腾讯云", "https://mirrors.cloud.tencent.com/npm"},
+    {"huawei", "华为云", "https://repo.huaweicloud.com/repository/npm"},
+  };
+
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
-  private TextView mirrorValue, statusLine;
+  private TextView mirrorValue, npmRegistryValue, statusLine;
   private TextView sshState, sshCommand, sshKeys, sshPassword;
   private Button sshButton;
   private boolean sshInstalled;
@@ -162,6 +170,12 @@ public class SettingsActivity extends Activity {
     mirrorValue.setText("读取中…");
     mirrorRow.setOnClickListener(v -> chooseMirror());
     list.addView(mirrorRow);
+
+    LinearLayout npmRow = row("npm 源", null);
+    npmRegistryValue = (TextView) ((LinearLayout) npmRow.getChildAt(0)).getChildAt(1);
+    npmRegistryValue.setText("读取中…");
+    npmRow.setOnClickListener(v -> chooseNpmRegistry());
+    list.addView(npmRow);
 
     buildSshSection(list);
 
@@ -234,6 +248,8 @@ public class SettingsActivity extends Activity {
     StringBuilder script = new StringBuilder();
     script.append("grep -m1 '^URIs:' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null"
         + " | sed 's/^URIs: */mirror=/'\n");
+    // npm 源用空格分隔（URL 里含 = ，不能走下面按 = 切分的那套解析）
+    script.append("echo npmreg $(npm config get registry 2>/dev/null)\n");
     for (Section section : SECTIONS)
       for (Tool tool : section.tools()) script.append(tool.statusCheck()).append('\n');
     script.append("[ -x /usr/sbin/sshd ] && echo sshd=1 || echo sshd=0\n");
@@ -251,8 +267,14 @@ public class SettingsActivity extends Activity {
               }
               Map<String, Boolean> result = new HashMap<>();
               String mirror = "";
+              String npmRegistry = "";
               int keys = 0;
               for (String line : output.split("\n")) {
+                // npm 源行是空格分隔（URL 含 = ），单独处理
+                if (line.startsWith("npmreg ")) {
+                  npmRegistry = line.substring("npmreg ".length()).trim();
+                  continue;
+                }
                 int split = line.indexOf('=');
                 if (split <= 0) continue;
                 String key = line.substring(0, split), value = line.substring(split + 1).trim();
@@ -262,11 +284,13 @@ public class SettingsActivity extends Activity {
               }
               int keyCount = keys;
               String mirrorText = describeMirror(mirror);
+              String npmRegistryText = describeNpmRegistry(npmRegistry);
               runOnUiThread(
                   () -> {
                     installed.clear();
                     installed.putAll(result);
                     mirrorValue.setText(mirrorText);
+                    npmRegistryValue.setText(npmRegistryText);
                     sshInstalled = Boolean.TRUE.equals(result.get("sshd"));
                     sshHasPassword = Boolean.TRUE.equals(result.get("sshpw"));
                     sshKeyCount = keyCount;
@@ -323,6 +347,48 @@ public class SettingsActivity extends Activity {
                   });
             },
             "settings-mirror")
+        .start();
+  }
+
+  private static String describeNpmRegistry(String url) {
+    if (url.isEmpty()) return "未安装 Node.js";
+    for (String[] registry : NPM_REGISTRIES)
+      if (url.startsWith(registry[2])) return registry[1] + " · " + registry[2];
+    return url;
+  }
+
+  private void chooseNpmRegistry() {
+    String[] labels = new String[NPM_REGISTRIES.length];
+    for (int i = 0; i < NPM_REGISTRIES.length; i++)
+      labels[i] = NPM_REGISTRIES[i][1] + "\n" + NPM_REGISTRIES[i][2];
+    new AlertDialog.Builder(this)
+        .setTitle("选择 npm 源")
+        .setItems(
+            labels,
+            (dialog, which) ->
+                applyNpmRegistry(NPM_REGISTRIES[which][0], NPM_REGISTRIES[which][1]))
+        .show();
+  }
+
+  private void applyNpmRegistry(String id, String label) {
+    npmRegistryValue.setText("切换中…");
+    new Thread(
+            () -> {
+              String message;
+              try {
+                proot.run("ubox-npm-registry " + id, 15_000);
+                message = "已切换到" + label;
+              } catch (Exception error) {
+                message = "切换失败：" + error.getMessage();
+              }
+              String toast = message;
+              runOnUiThread(
+                  () -> {
+                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+                    refreshStatus();
+                  });
+            },
+            "settings-npm-registry")
         .start();
   }
 

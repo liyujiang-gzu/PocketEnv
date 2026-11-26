@@ -1,0 +1,12 @@
+#!/bin/sh
+# 切换 npm 源（registry）。设置页「npm 源」用。
+set -e
+case "${1:-}" in
+  official) R=https://registry.npmjs.org ;;
+  aliyun)   R=https://registry.npmmirror.com ;;
+  tencent)  R=https://mirrors.cloud.tencent.com/npm ;;
+  huawei)   R=https://repo.huaweicloud.com/repository/npm ;;
+  *) echo "用法: ubox-npm-registry official|aliyun|tencent|huawei"; exit 1 ;;
+esac
+npm config set registry "$R"
+echo "npm 源已切换到 $R"
