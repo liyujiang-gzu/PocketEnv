@@ -446,9 +446,20 @@ public class MainActivity extends Activity {
         TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics());
     button.setPadding(pad, 0, pad, 0);
     button.setOnClickListener(listener);
+    // 按标签所需宽度分配权重：窄屏下 SHIFT/HOME 等长标签不被裁剪，符号键相应收窄。
     row.addView(button, new LinearLayout.LayoutParams(
-        0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+        0, LinearLayout.LayoutParams.MATCH_PARENT, keyWeight(label)));
     return button;
+  }
+
+  /** 标签的近似视觉宽度（dp）：中文按 12、大写字母 7.4、其余 6，再加左右各 2dp padding。 */
+  private static float keyWeight(String label) {
+    float width = 4;
+    for (int i = 0; i < label.length(); i++) {
+      char c = label.charAt(i);
+      width += c > 127 ? 12 : (Character.isUpperCase(c) ? 7.4f : 6);
+    }
+    return width;
   }
 
   private void sendKey(int keyCode) {
