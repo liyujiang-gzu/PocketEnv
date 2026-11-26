@@ -676,7 +676,7 @@ public class SettingsActivity extends Activity {
 
     LinearLayout licenseRow = row("第三方开源许可", null);
     subtitle(licenseRow).setText("查看本应用使用的第三方组件及其许可证");
-    licenseRow.setOnClickListener(v -> showLicenses());
+    licenseRow.setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     list.addView(licenseRow);
   }
 
@@ -686,60 +686,6 @@ public class SettingsActivity extends Activity {
     } catch (Exception error) {
       Toast.makeText(this, "无法打开链接：" + url, Toast.LENGTH_LONG).show();
     }
-  }
-
-  /** 第三方组件：显示名、许可、主页、assets 里的许可全文（null = 无全文，仅展示来源）。 */
-  private static final String[][] THIRD_PARTY = {
-    {"proot", "GPL-2.0", "https://github.com/proot-me/proot", "licenses/proot-COPYING.txt"},
-    {"Termux terminal-view / terminal-emulator", "Apache-2.0",
-        "https://github.com/termux/termux-app", "licenses/Termux-terminal-Apache-2.0.txt"},
-    {"DSHA (DSH-APP)", "MIT", "https://github.com/DSH-APP/DSHA", "licenses/DSHA-LICENSE.txt"},
-    {"Apache Commons Compress", "Apache-2.0",
-        "https://commons.apache.org/proper/commons-compress/", null},
-    {"ubuntu-box (biyan113)", "MIT", "https://github.com/biyan113/ubuntu-box", null},
-  };
-
-  private void showLicenses() {
-    // 列表展示各第三方组件，点击条目才弹出该组件的许可协议全文。
-    String[] labels = new String[THIRD_PARTY.length];
-    for (int i = 0; i < THIRD_PARTY.length; i++)
-      labels[i] = THIRD_PARTY[i][0] + "\n" + THIRD_PARTY[i][1];
-    new AlertDialog.Builder(this)
-        .setTitle("第三方开源许可")
-        .setItems(labels, (dialog, which) -> showLicenseDetail(THIRD_PARTY[which]))
-        .setPositiveButton("关闭", null)
-        .show();
-  }
-
-  /** 弹出单个组件的许可详情：许可 + 主页 + 完整协议全文（若有）。 */
-  private void showLicenseDetail(String[] component) {
-    StringBuilder body = new StringBuilder();
-    body.append("许可：").append(component[1]).append("\n主页：").append(component[2]).append("\n\n");
-    String assetPath = component[3];
-    if (assetPath != null) {
-      body.append("──────── 许可协议全文 ────────\n\n");
-      try (java.io.BufferedReader reader = new java.io.BufferedReader(
-          new java.io.InputStreamReader(getAssets().open(assetPath)))) {
-        String line;
-        while ((line = reader.readLine()) != null) body.append(line).append('\n');
-      } catch (Exception error) {
-        body.append("（许可文件读取失败：").append(error.getMessage()).append("）\n");
-      }
-    } else {
-      body.append("该组件的完整许可协议可在其主页查看。\n");
-    }
-
-    ScrollView scroll = new ScrollView(this);
-    TextView view = text(body.toString(), 13, 0xFFDDDDDD);
-    view.setPadding(dp(16), dp(12), dp(16), dp(12));
-    scroll.addView(view);
-
-    AlertDialog dialog = new AlertDialog.Builder(this)
-        .setTitle(component[0])
-        .setPositiveButton("关闭", null)
-        .create();
-    dialog.setView(scroll);
-    dialog.show();
   }
 
   private void updateSshUi() {

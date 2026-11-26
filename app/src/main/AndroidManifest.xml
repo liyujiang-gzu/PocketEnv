@@ -34,6 +34,12 @@
             android:label="设置"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".LicensesActivity"
+            android:exported="false"
+            android:label="第三方开源许可"
+            android:parentActivityName=".SettingsActivity" />
+
         <service
             android:name=".TerminalService"
             android:exported="false"
