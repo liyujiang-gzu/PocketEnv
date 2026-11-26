@@ -1,0 +1,29 @@
+#!/bin/sh
+# 切换 PyPI 源，同时配置 pip 和 uv。设置页「PyPI 源」用。
+# pip 全局配置：~/.config/pip/pip.conf（INI，[global] index-url）
+# uv  全局配置：~/.config/uv/uv.toml（TOML，[[index]] url + default）
+set -e
+case "${1:-}" in
+  official) U=https://pypi.org/simple ;;
+  tuna)     U=https://pypi.tuna.tsinghua.edu.cn/simple ;;
+  aliyun)   U=https://mirrors.aliyun.com/pypi/simple ;;
+  tencent)  U=https://mirrors.cloud.tencent.com/pypi/simple ;;
+  *) echo "用法: ubox-pypi-mirror official|tuna|aliyun|tencent"; exit 1 ;;
+esac
+
+# pip（INI）
+mkdir -p "$HOME/.config/pip"
+cat > "$HOME/.config/pip/pip.conf" <<EOF
+[global]
+index-url = $U
+EOF
+
+# uv（TOML）
+mkdir -p "$HOME/.config/uv"
+cat > "$HOME/.config/uv/uv.toml" <<EOF
+[[index]]
+url = "$U"
+default = true
+EOF
+
+echo "PyPI 源已切换到 $U（pip + uv）"

@@ -101,7 +101,7 @@ public class SettingsActivity extends Activity {
         apt("python", "Python 3", "python3、pip、venv", "python3", "python3-pip", "python3-venv"),
         new Tool("uv", "uv", "Astral 出品的高速 Python 包管理器（替代 pip/venv），需先装 Python 3",
             Kind.UV, new String[0], "uv"),
-        apt("build", "编译工具链", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
+        apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
     new Section(
         "AI Agent（需要 Node.js，未安装时会自动先装）",
         npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli-linux-arm64", "opencode", "@opencode/cli-linux-arm64"),
@@ -130,9 +130,17 @@ public class SettingsActivity extends Activity {
     {"huawei", "华为云", "https://repo.huaweicloud.com/repository/npm"},
   };
 
+  /** PyPI 源：id、名称、URL。切换走 ubox-pypi-mirror（同时配 pip 和 uv）。 */
+  private static final String[][] PYPI_MIRRORS = {
+    {"official", "官方（默认）", "https://pypi.org/simple"},
+    {"tuna", "清华（推荐）", "https://pypi.tuna.tsinghua.edu.cn/simple"},
+    {"aliyun", "阿里云", "https://mirrors.aliyun.com/pypi/simple"},
+    {"tencent", "腾讯云", "https://mirrors.cloud.tencent.com/pypi/simple"},
+  };
+
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
-  private TextView mirrorValue, npmRegistryValue, statusLine;
+  private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, statusLine;
   private TextView sshState, sshCommand, sshKeys, sshPassword;
   private Button sshButton;
   private boolean sshInstalled;
@@ -181,6 +189,12 @@ public class SettingsActivity extends Activity {
     npmRegistryValue.setText("读取中…");
     npmRow.setOnClickListener(v -> chooseNpmRegistry());
     list.addView(npmRow);
+
+    LinearLayout pypiRow = row("PyPI 源", null);
+    pypiMirrorValue = (TextView) ((LinearLayout) pypiRow.getChildAt(0)).getChildAt(1);
+    pypiMirrorValue.setText("读取中…");
+    pypiRow.setOnClickListener(v -> choosePypiMirror());
+    list.addView(pypiRow);
 
     buildSshSection(list);
 
@@ -255,6 +269,9 @@ public class SettingsActivity extends Activity {
         + " | sed 's/^URIs: */mirror=/'\n");
     // npm 源用空格分隔（URL 里含 = ，不能走下面按 = 切分的那套解析）
     script.append("echo npmreg $(npm config get registry 2>/dev/null)\n");
+    // PyPI 源读 pip.conf 的 index-url（uv.toml 与之同步，展示以 pip 为准），同样空格分隔
+    script.append("echo pypi $(grep -m1 '^index-url' $HOME/.config/pip/pip.conf 2>/dev/null"
+        + " | sed 's/^index-url[[:space:]]*=[[:space:]]*//')\n");
     for (Section section : SECTIONS)
       for (Tool tool : section.tools()) script.append(tool.statusCheck()).append('\n');
     script.append("[ -x /usr/sbin/sshd ] && echo sshd=1 || echo sshd=0\n");
@@ -273,11 +290,17 @@ public class SettingsActivity extends Activity {
               Map<String, Boolean> result = new HashMap<>();
               String mirror = "";
               String npmRegistry = "";
+              String pypiMirror = "";
               int keys = 0;
               for (String line : output.split("\n")) {
                 // npm 源行是空格分隔（URL 含 = ），单独处理
                 if (line.startsWith("npmreg ")) {
                   npmRegistry = line.substring("npmreg ".length()).trim();
+                  continue;
+                }
+                // PyPI 源行同样空格分隔
+                if (line.startsWith("pypi ")) {
+                  pypiMirror = line.substring("pypi ".length()).trim();
                   continue;
                 }
                 int split = line.indexOf('=');
@@ -290,12 +313,14 @@ public class SettingsActivity extends Activity {
               int keyCount = keys;
               String mirrorText = describeMirror(mirror);
               String npmRegistryText = describeNpmRegistry(npmRegistry);
+              String pypiMirrorText = describePypiMirror(pypiMirror);
               runOnUiThread(
                   () -> {
                     installed.clear();
                     installed.putAll(result);
                     mirrorValue.setText(mirrorText);
                     npmRegistryValue.setText(npmRegistryText);
+                    pypiMirrorValue.setText(pypiMirrorText);
                     sshInstalled = Boolean.TRUE.equals(result.get("sshd"));
                     sshHasPassword = Boolean.TRUE.equals(result.get("sshpw"));
                     sshKeyCount = keyCount;
@@ -394,6 +419,48 @@ public class SettingsActivity extends Activity {
                   });
             },
             "settings-npm-registry")
+        .start();
+  }
+
+  private static String describePypiMirror(String url) {
+    if (url.isEmpty()) return "pip 默认（未配置）";
+    for (String[] mirror : PYPI_MIRRORS)
+      if (url.startsWith(mirror[2])) return mirror[1] + " · " + mirror[2];
+    return url;
+  }
+
+  private void choosePypiMirror() {
+    String[] labels = new String[PYPI_MIRRORS.length];
+    for (int i = 0; i < PYPI_MIRRORS.length; i++)
+      labels[i] = PYPI_MIRRORS[i][1] + "\n" + PYPI_MIRRORS[i][2];
+    new AlertDialog.Builder(this)
+        .setTitle("选择 PyPI 源（pip + uv）")
+        .setItems(
+            labels,
+            (dialog, which) ->
+                applyPypiMirror(PYPI_MIRRORS[which][0], PYPI_MIRRORS[which][1]))
+        .show();
+  }
+
+  private void applyPypiMirror(String id, String label) {
+    pypiMirrorValue.setText("切换中…");
+    new Thread(
+            () -> {
+              String message;
+              try {
+                proot.run("ubox-pypi-mirror " + id, 15_000);
+                message = "已切换到" + label + "（pip + uv）";
+              } catch (Exception error) {
+                message = "切换失败：" + error.getMessage();
+              }
+              String toast = message;
+              runOnUiThread(
+                  () -> {
+                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+                    refreshStatus();
+                  });
+            },
+            "settings-pypi-mirror")
         .start();
   }
 
