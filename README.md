@@ -1,17 +1,19 @@
-# UbuntuBox
+# UbuntuBox - Pocket Develop Environment
 
-在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) 环境，免 root、免 Termux，用来安装和运行各种 CLI Agent。
+在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) 环境，免 root、免 Termux，用来安装开发环境和运行各种 CLI Agent。
 
-运行时部分剥离自 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（MIT），只保留了 proot 运行时、启动参数和 Termux 终端组件，DSH 相关的插件、备份、补丁体系都去掉了。
+基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT）二次开发，运行时部分剥离自 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（MIT），只保留了 [proot](https://github.com/proot-me/proot) 运行时、启动参数和 [Termux 终端](https://github.com/termux/termux-app/tree/master/terminal-view)，DSH 相关的插件、备份、补丁体系以及设备自动化功能都去掉了。
 
 ## 功能特性
 
 - 完整 Ubuntu 24.04 (arm64) 环境运行在 Android 上
 - 无需 root 权限
 - 无需安装 Termux
-- 支持文件管理器直接访问 Ubuntu 文件系统
+- 支持 Ubuntu 系统访问安卓文件系统（挂载 /sdcard ）
+- **支持安卓文件管理器直接访问 Ubuntu 文件系统**
 - 内置 SSH 服务，方便远程访问
-- 预置 Node.js 22 和多种 CLI Agent 支持
+- 支持切换中国大陆友好的软件源（deb、npm）
+- 预置 Git、Node.js 22、Python 3 等开发环境及多种编程智能体的快捷安装支持
 
 ## 构建
 
@@ -52,31 +54,11 @@
 
 ### 在文件管理器里访问 Ubuntu
 
-菜单 →「授权访问 ubuntu」会打开系统文件管理器并定位到 rootfs。也可以在任意支持 SAF 的文件管理器（系统「文件」、MT 管理器、Solid Explorer 等）的存储列表里找到「UbuntuBox」，浏览和复制文件。
+菜单 →「授权访问 ubuntu」会打开系统文件管理器并定位到 rootfs。也可以在任意支持 SAF 的文件管理器（系统「文件」、MT 管理器等）的存储列表里找到「UbuntuBox」，浏览和复制文件。
 
 - 除 `/root` 外都是只读的
 - `/root` 可直接新建、修改、删除和改名，适合把文件拷进拷出
 - rootfs 必须留在应用内部存储，/sdcard 的 FOSE 不支持符号链接和执行权限
-
-### 在里面装 Agent
-
-```sh
-# 国内建议先换源
-ubox-mirror tuna && apt update
-
-# 安装 Node.js 22
-ubox-node
-
-# 安装 Claude Code（或其他 CLI Agent）
-npm i -g @anthropic-ai/claude-code
-
-# 或安装其他 Agent
-npm i -g @openai/codex
-npm i -g @google/gemini-cli
-```
-
-**兼容性说明：**
-`/etc/profile.d/ubox.sh` 会把 `node-compat.cjs` 加进 `NODE_OPTIONS`。Android 不允许普通应用读取网卡列表和 `/proc/stat`，这个补丁可以避免 `os.networkInterfaces()` 抛错，以及 `os.cpus()` 返回空数组。
 
 ### SSH 远程访问
 
@@ -94,7 +76,8 @@ npm i -g @google/gemini-cli
 
 ## 许可
 
-- **本项目代码**：沿用 DSHA 的 MIT 许可（见 `assets/licenses/DSHA-LICENSE.txt`）
+- **本项目二开代码**：采用国内的 MulanPSL 许可（见 `LICENSE`）
+- **ubuntu-box 基线代码**：沿用 DSHA 的 MIT 许可（见 `assets/licenses/DSHA-LICENSE.txt`）
 - **libproot.so / libprootloader*.so**：Termux proot，GPL-2.0（`assets/licenses/proot-COPYING.txt`）。对外分发 APK 时需要按 GPL 提供对应源码
 - **libtalloc.so**：LGPL
 - **libandroidshmem.so**：来源同 DSHA，原仓库标注许可未核实
