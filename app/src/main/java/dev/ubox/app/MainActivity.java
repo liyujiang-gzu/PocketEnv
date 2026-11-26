@@ -220,8 +220,7 @@ public class MainActivity extends Activity {
   @Override
   public boolean onOptionsItemSelected(MenuItem item) {
     int id = item.getItemId();
-    if (id == R.id.menu_new_session) newSession();
-    else if (id == R.id.menu_sessions) manageSessions();
+    if (id == R.id.menu_sessions) manageSessions();
     else if (id == R.id.menu_settings)
       startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_SETTINGS);
     else if (id == R.id.menu_keyboard) showKeyboard();
@@ -267,6 +266,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
             .setTitle("管理会话")
             .setView(scroll)
+            .setPositiveButton("新建会话", (d, which) -> newSession())
             .setNegativeButton("关闭", null)
             .create();
 
