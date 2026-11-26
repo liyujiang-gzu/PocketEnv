@@ -67,12 +67,24 @@ case "$kind" in
     GRADLE_VER=9.9.2
     GRADLE_ZIP="gradle-${GRADLE_VER}-bin.zip"
     GRADLE_SHA=971fcd7150ca4ba04852c0b2ca0d2d0ab9468e14b03473eab19528809914c76b
+    # 已安装判断以能否实际运行且为 9.x 为准；版本不符或跑不起来就重装，避免坏安装无法自愈
     if [ -x /usr/local/gradle/bin/gradle ]; then
-      echo "==> Gradle 已安装: $(/usr/local/gradle/bin/gradle --version | grep -m1 '^Gradle ')"
-      exit 0
+      installed_version=$(/usr/local/gradle/bin/gradle --version 2>/dev/null | grep -m1 '^Gradle ' || true)
+      case "$installed_version" in
+        "Gradle 9."*) echo "==> Gradle 已安装: $installed_version"; exit 0 ;;
+      esac
+      echo "==> 现有 Gradle 不可用或版本不符（${installed_version:-无输出}），重新安装"
+      rm -rf /usr/local/gradle /usr/local/bin/gradle
     fi
-    # Gradle 9 需要 Java 17+ 才能运行；缺失时先装 JDK（同 uv 自动装 Python）
-    command -v java >/dev/null 2>&1 || { echo "==> 需要 Java，先安装 OpenJDK 17"; ubox-install apt openjdk-17-jdk-headless; }
+    # Gradle 9 需要 JVM 17–27；仅检测 java 是否存在不够，低版本会导致装完跑不起来
+    java_major=0
+    command -v java >/dev/null 2>&1 &&
+      java_major=$(java -version 2>&1 | head -n1 | awk -F'"' '{print $2}' | awk -F. '{if ($1==1) print $2; else print $1}')
+    case "$java_major" in ''|*[!0-9]*) java_major=0 ;; esac
+    if [ "$java_major" -lt 17 ]; then
+      echo "==> 需要 Java 17+（当前 ${java_major}），先安装 OpenJDK 17"
+      ubox-install apt openjdk-17-jdk-headless
+    fi
     command -v unzip >/dev/null 2>&1 || ubox-install apt unzip
     echo "==> 下载 Gradle ${GRADLE_VER}"
     tmp=$(mktemp -d)

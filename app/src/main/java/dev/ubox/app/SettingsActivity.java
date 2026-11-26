@@ -49,7 +49,8 @@ public class SettingsActivity extends Activity {
         case GO: return "ubox-install go";
         case GRADLE: return "ubox-install gradle";
         case CURL: return "curl -fsSL " + packages[0] + " | bash";
-        default: return "ubox-install node";
+        case NODE: return "ubox-install node";
+        default: throw new IllegalStateException("未处理的安装类型: " + kind);
       }
     }
 
@@ -73,9 +74,10 @@ public class SettingsActivity extends Activity {
           return "rm -rf \"$HOME/.opencode\""
               + " && sed -i '/# opencode/d; /\\.opencode\\/bin/d' \"$HOME/.bashrc\""
               + " && echo 已卸载 OpenCode";
-        default: return "rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx"
+        case NODE: return "rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx"
             + " /usr/local/bin/corepack /usr/local/lib/node_modules/npm /usr/local/include/node"
             + " && echo 已卸载 Node.js";
+        default: throw new IllegalStateException("未处理的卸载类型: " + kind);
       }
     }
 
