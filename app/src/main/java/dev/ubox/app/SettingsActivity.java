@@ -66,6 +66,11 @@ public class SettingsActivity extends Activity {
         return "n=$(dpkg-query -W -f='${db:Status-Status}\\n' " + String.join(" ", packages)
             + " 2>/dev/null | grep -c '^installed$'); [ \"$n\" = " + packages.length
             + " ] && echo " + id + "=1 || echo " + id + "=0";
+      if (kind == Kind.UV)
+        // uv 官方脚本装到 ~/.local/bin（不在非交互 shell 的 PATH），补软链前
+        // command -v uv 可能找不到，故再回退检查 ~/.local/bin/uv 是否存在。
+        return "if command -v uv >/dev/null 2>&1 || [ -x \"$HOME/.local/bin/uv\" ]; "
+            + "then echo " + id + "=1; else echo " + id + "=0; fi";
       return "command -v " + check + " >/dev/null 2>&1 && echo " + id + "=1 || echo " + id + "=0";
     }
   }
