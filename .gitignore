@@ -1,4 +1,5 @@
 .gradle/
+.agents/worktrees/
 build/
 local.properties
 .idea/
