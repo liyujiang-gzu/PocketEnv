@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -19,12 +18,10 @@ import android.widget.Toast;
 import android.widget.Toolbar;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-/** 软件源切换和常用工具的一键安装。安装在新终端会话里执行，进度和错误都直接可见。 */
+/** 软件源切换和常用工具的安装。安装在新终端会话里执行，进度和错误都直接可见。 */
 public class SettingsActivity extends Activity {
   static final String EXTRA_NAME = "name";
   static final String EXTRA_COMMAND = "command";
@@ -112,9 +109,6 @@ public class SettingsActivity extends Activity {
             "@google/gemini-cli")),
   };
 
-  /** 「一键安装推荐」包含的条目。 */
-  private static final String[] RECOMMENDED = {"net", "cli", "git"};
-
   private static final String[][] MIRRORS = {
     {"official", "官方（默认）", "ports.ubuntu.com"},
     {"tuna", "清华（推荐）", "mirrors.tuna.tsinghua.edu.cn"},
@@ -196,17 +190,6 @@ public class SettingsActivity extends Activity {
     pypiRow.setOnClickListener(v -> choosePypiMirror());
     list.addView(pypiRow);
 
-    buildSshSection(list);
-
-    Button recommended = new Button(this);
-    recommended.setText("一键安装推荐（网络工具 + 常用命令 + Git）");
-    recommended.setAllCaps(false);
-    recommended.setOnClickListener(v -> installRecommended());
-    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    lp.topMargin = dp(12);
-    list.addView(recommended, lp);
-
     for (Section section : SECTIONS) {
       list.addView(header(section.title()));
       for (Tool tool : section.tools()) {
@@ -219,6 +202,8 @@ public class SettingsActivity extends Activity {
         list.addView(row);
       }
     }
+
+    buildSshSection(list);
 
     Toolbar toolbar = new Toolbar(this);
     toolbar.setBackgroundColor(0xFF1E1E1E);
@@ -489,15 +474,6 @@ public class SettingsActivity extends Activity {
         .setNegativeButton("取消", null)
         .setPositiveButton("卸载", (d, w) -> runInTerminal("卸载 " + tool.title(), tool.removeCommand()))
         .show();
-  }
-
-  private void installRecommended() {
-    Set<String> packages = new LinkedHashSet<>();
-    for (Section section : SECTIONS)
-      for (Tool tool : section.tools())
-        for (String id : RECOMMENDED)
-          if (tool.id().equals(id)) for (String p : tool.packages()) packages.add(p);
-    runInTerminal("安装推荐工具", "ubox-install apt " + TextUtils.join(" ", packages));
   }
 
   /** 交给 MainActivity 在新会话中执行，便于看到实时输出。 */
