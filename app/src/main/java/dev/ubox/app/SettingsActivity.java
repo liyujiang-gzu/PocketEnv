@@ -28,7 +28,7 @@ public class SettingsActivity extends Activity {
   static final String EXTRA_RESET = "reset";
   private static final String TAG = "UbuntuBox";
 
-  enum Kind { APT, NODE, NPM, UV, GO, CURL, GRADLE }
+  enum Kind { APT, NODE, NPM, UV, GO, CURL, GRADLE, ANDROID_SDK }
 
   /** packages：apt/npm 包名；check：NODE/NPM 用来判断是否已安装的命令名。 */
   record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
@@ -48,6 +48,7 @@ public class SettingsActivity extends Activity {
         case UV: return "ubox-install uv";
         case GO: return "ubox-install go";
         case GRADLE: return "ubox-install gradle";
+        case ANDROID_SDK: return "ubox-install android-sdk";
         case CURL: return "curl -fsSL " + packages[0] + " | bash";
         case NODE: return "ubox-install node";
         default: throw new IllegalStateException("未处理的安装类型: " + kind);
@@ -64,6 +65,7 @@ public class SettingsActivity extends Activity {
             + " && echo 已卸载 Go";
         case GRADLE: return "rm -rf /usr/local/gradle /usr/local/bin/gradle"
             + " && echo 已卸载 Gradle";
+        case ANDROID_SDK: return "ubox-install android-sdk remove";
         case CURL:
           if (id.equals("qwen"))
             // qwen 装到 ~/.local/bin/qwen + ~/.local/lib/qwen-code，PATH block 写进 .bashrc
@@ -101,6 +103,12 @@ public class SettingsActivity extends Activity {
         // PATH 里，command -v gradle 通常能命中；再回退检查实际目录兜底。
         return "if command -v gradle >/dev/null 2>&1 || [ -x /usr/local/gradle/bin/gradle ]; "
             + "then echo " + id + "=1; else echo " + id + "=0; fi";
+      if (kind == Kind.ANDROID_SDK)
+        // SDK 装在 /opt/android-sdk，aapt2 等原生工具在 build-tools 目录里。
+        // 直接查固定路径：非交互 shell 不一定加载 /etc/profile.d 的 PATH。
+        return "if [ -x /opt/android-sdk/build-tools/36.0.0/aapt2 ]"
+            + " && [ -d /opt/android-sdk/platforms/android-36 ]; "
+            + "then echo " + id + "=1; else echo " + id + "=0; fi";
       if (kind == Kind.CURL) {
         // curl 脚本装到各自目录并把该目录写进 .bashrc 的 PATH。非交互 shell 不一定
         // source .bashrc，故再回退检查实际二进制：opencode 在 ~/.opencode/bin，
@@ -131,6 +139,10 @@ public class SettingsActivity extends Activity {
     return new Tool(id, title, summary, Kind.GRADLE, new String[0], "gradle");
   }
 
+  private static Tool androidSdk(String id, String title, String summary) {
+    return new Tool(id, title, summary, Kind.ANDROID_SDK, new String[0], null);
+  }
+
   /** curl 官方脚本安装（packages[0] = 安装脚本 URL），check = 装完的命令名。 */
   private static Tool curl(String id, String title, String summary, String url, String bin) {
     return new Tool(id, title, summary, Kind.CURL, new String[] {url}, bin);
@@ -156,6 +168,7 @@ public class SettingsActivity extends Activity {
             Kind.UV, new String[0], "uv"),
         apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential"),
         apt("jdk17", "OpenJDK 17", "Java/Kotlin 开发工具包 17；Gradle 9 运行需要", "openjdk-17-jdk"),
+        androidSdk("androidsdk", "Android SDK 36", "platform-36 + build-tools 36.0.0（arm64 原生工具），无 system image / source"),
         apt("maven3", "Maven 3", "Java 项目构建与依赖管理（apt 自带 3.x）", "maven"),
         gradle("gradle9", "Gradle 9", "官方 9.x 二进制包（腾讯云镜像 + 校验），缺 Java 时自动装 OpenJDK 17"),
         go("golang", "Go", "官方 linux-arm64 tarball（golang.google.cn 镜像），含 go、gofmt")),
