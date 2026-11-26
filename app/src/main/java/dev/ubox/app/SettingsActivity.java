@@ -28,7 +28,7 @@ public class SettingsActivity extends Activity {
   static final String EXTRA_COMMAND = "command";
   private static final String TAG = "UbuntuBox";
 
-  enum Kind { APT, NODE, NPM, UV, GO }
+  enum Kind { APT, NODE, NPM, UV, GO, CURL }
 
   /** packages：apt/npm 包名；check：NODE/NPM 用来判断是否已安装的命令名。 */
   record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
@@ -47,6 +47,7 @@ public class SettingsActivity extends Activity {
               + " && echo 已为 " + bin + " 创建命令链接 || echo 未找到 " + bin + " 二进制; }";
         case UV: return "ubox-install uv";
         case GO: return "ubox-install go";
+        case CURL: return "curl -fsSL " + packages[0] + " | bash";
         default: return "ubox-install node";
       }
     }
@@ -59,6 +60,9 @@ public class SettingsActivity extends Activity {
             + " && echo 已卸载 uv";
         case GO: return "rm -rf /usr/local/go /usr/local/bin/go /usr/local/bin/gofmt"
             + " && echo 已卸载 Go";
+        case CURL: return "rm -rf \"$HOME/.opencode\""
+            + " && sed -i '/# opencode/d; /\\.opencode\\/bin/d' \"$HOME/.bashrc\""
+            + " && echo 已卸载 OpenCode";
         default: return "rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx"
             + " /usr/local/bin/corepack /usr/local/lib/node_modules/npm /usr/local/include/node"
             + " && echo 已卸载 Node.js";
@@ -80,6 +84,11 @@ public class SettingsActivity extends Activity {
         // command -v go 通常能命中；再回退检查 /usr/local/go/bin/go 兜底。
         return "if command -v go >/dev/null 2>&1 || [ -x /usr/local/go/bin/go ]; "
             + "then echo " + id + "=1; else echo " + id + "=0; fi";
+      if (kind == Kind.CURL)
+        // curl 脚本装到 ~/.opencode/bin/opencode，并把该目录写进 .bashrc 的 PATH。
+        // 非交互 shell 不一定 source .bashrc，故再回退检查实际二进制。
+        return "if command -v " + check + " >/dev/null 2>&1 || [ -x \"$HOME/.opencode/bin/" + check + "\" ]; "
+            + "then echo " + id + "=1; else echo " + id + "=0; fi";
       return "command -v " + check + " >/dev/null 2>&1 && echo " + id + "=1 || echo " + id + "=0";
     }
   }
@@ -96,6 +105,11 @@ public class SettingsActivity extends Activity {
 
   private static Tool go(String id, String title, String summary) {
     return new Tool(id, title, summary, Kind.GO, new String[0], "go");
+  }
+
+  /** curl 官方脚本安装（packages[0] = 安装脚本 URL），check = 装完的命令名。 */
+  private static Tool curl(String id, String title, String summary, String url, String bin) {
+    return new Tool(id, title, summary, Kind.CURL, new String[] {url}, bin);
   }
 
   static final Section[] SECTIONS = {
@@ -119,8 +133,9 @@ public class SettingsActivity extends Activity {
         apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential"),
         go("golang", "Go", "官方 linux-arm64 tarball（golang.google.cn 镜像），含 go、gofmt")),
     new Section(
-        "编程智能体（需要 Node.js）",
-        npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli", "opencode", "@opencode/cli"),
+        "编程智能体",
+        curl("opencode", "OpenCode", "Anomaly · 官方脚本安装（含后台服务依赖），装到 ~/.opencode",
+            "https://opencode.ai/v2/install", "opencode"),
         npm("claude", "Claude Code", "Anthropic · npm @anthropic-ai/claude-code", "claude",
             "@anthropic-ai/claude-code"),
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
@@ -571,7 +586,7 @@ public class SettingsActivity extends Activity {
   // ---------------------------------------------------------------- SSH
 
   private void buildSshSection(LinearLayout list) {
-    list.addView(header("SSH 远程访问"));
+    list.addView(header("局域网访问"));
 
     sshButton = actionButton();
     sshButton.setOnClickListener(v -> toggleSsh());
