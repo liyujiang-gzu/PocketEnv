@@ -140,7 +140,9 @@ public class SettingsActivity extends Activity {
             "@anthropic-ai/claude-code"),
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
         npm("gemini", "Gemini CLI", "Google · npm @google/gemini-cli", "gemini",
-            "@google/gemini-cli")),
+            "@google/gemini-cli"),
+        npm("codebuddy", "CodeBuddy", "腾讯 · npm @tencent-ai/codebuddy-code，装完即可用无需验证",
+            "codebuddy", "@tencent-ai/codebuddy-code")),
   };
 
   private static final String[][] MIRRORS = {
