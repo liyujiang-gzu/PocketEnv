@@ -36,9 +36,9 @@ public class SettingsActivity extends Activity {
       switch (kind) {
         case APT: return "ubox-install apt " + String.join(" ", packages);
         case NPM:
-          // 平台二进制包（如 @opencode/cli-linux-arm64）的 package.json 没有 bin 字段，
-          // npm install -g 不会把命令注册进 PATH，装完 command -v 检测不到。这里在
-          // npm 装完后补建软链（仅当命令缺失且二进制存在时），不影响自带 bin 的包。
+          // 兜底：个别 npm 包的 bin 可能没正确注册进 PATH（装完 command -v 找不到）。
+          // 这里在 npm 装完后补建软链（仅当命令缺失且包内二进制存在时），自带 bin
+          // 的包不会触发，不影响正常安装。
           String bin = check, pkg = packages[0];
           return "ubox-install npm " + pkg
               + " && command -v " + bin + " >/dev/null 2>&1 || { f=$(npm root -g)"
@@ -107,7 +107,7 @@ public class SettingsActivity extends Activity {
         apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
     new Section(
         "AI Agent（需要 Node.js，未安装时会自动先装）",
-        npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli-linux-arm64", "opencode", "@opencode/cli-linux-arm64"),
+        npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli", "opencode", "@opencode/cli"),
         npm("claude", "Claude Code", "Anthropic · npm @anthropic-ai/claude-code", "claude",
             "@anthropic-ai/claude-code"),
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
@@ -564,19 +564,46 @@ public class SettingsActivity extends Activity {
     }
   }
 
+  /** 第三方组件：显示名、许可、主页、assets 里的许可全文（null = 无全文，仅展示来源）。 */
+  private static final String[][] THIRD_PARTY = {
+    {"proot", "GPL-2.0", "https://github.com/proot-me/proot", "licenses/proot-COPYING.txt"},
+    {"Termux terminal-view / terminal-emulator", "Apache-2.0",
+        "https://github.com/termux/termux-app", "licenses/Termux-terminal-Apache-2.0.txt"},
+    {"DSHA (DSH-APP)", "MIT", "https://github.com/DSH-APP/DSHA", "licenses/DSHA-LICENSE.txt"},
+    {"Apache Commons Compress", "Apache-2.0",
+        "https://commons.apache.org/proper/commons-compress/", null},
+    {"ubuntu-box (biyan113)", "MIT", "https://github.com/biyan113/ubuntu-box", null},
+  };
+
   private void showLicenses() {
-    // 直接读 assets/licenses/ 下的真实许可文件，避免手写许可与实际不符。
+    // 列表展示各第三方组件，点击条目才弹出该组件的许可协议全文。
+    String[] labels = new String[THIRD_PARTY.length];
+    for (int i = 0; i < THIRD_PARTY.length; i++)
+      labels[i] = THIRD_PARTY[i][0] + "\n" + THIRD_PARTY[i][1];
+    new AlertDialog.Builder(this)
+        .setTitle("第三方开源许可")
+        .setItems(labels, (dialog, which) -> showLicenseDetail(THIRD_PARTY[which]))
+        .setPositiveButton("关闭", null)
+        .show();
+  }
+
+  /** 弹出单个组件的许可详情：许可 + 主页 + 完整协议全文（若有）。 */
+  private void showLicenseDetail(String[] component) {
     StringBuilder body = new StringBuilder();
-    body.append("UbuntuBox 采用木兰宽松许可证（Mulan PSL v2，见项目 LICENSE）。")
-        .append("本应用基于以下第三方开源组件构建，在此致谢：\n\n");
-    appendLicense(body, "proot — GPL-2.0", "licenses/proot-COPYING.txt");
-    appendLicense(body, "Termux terminal-view / terminal-emulator — Apache-2.0",
-        "licenses/Termux-terminal-Apache-2.0.txt");
-    appendLicense(body, "DSHA (DSH-APP) — MIT", "licenses/DSHA-LICENSE.txt");
-    body.append("Apache Commons Compress — Apache-2.0\n")
-        .append("  https://commons.apache.org/proper/commons-compress/\n\n")
-        .append("ubuntu-box (biyan113) — MIT\n")
-        .append("  https://github.com/biyan113/ubuntu-box\n");
+    body.append("许可：").append(component[1]).append("\n主页：").append(component[2]).append("\n\n");
+    String assetPath = component[3];
+    if (assetPath != null) {
+      body.append("──────── 许可协议全文 ────────\n\n");
+      try (java.io.BufferedReader reader = new java.io.BufferedReader(
+          new java.io.InputStreamReader(getAssets().open(assetPath)))) {
+        String line;
+        while ((line = reader.readLine()) != null) body.append(line).append('\n');
+      } catch (Exception error) {
+        body.append("（许可文件读取失败：").append(error.getMessage()).append("）\n");
+      }
+    } else {
+      body.append("该组件的完整许可协议可在其主页查看。\n");
+    }
 
     ScrollView scroll = new ScrollView(this);
     TextView view = text(body.toString(), 13, 0xFFDDDDDD);
@@ -584,24 +611,11 @@ public class SettingsActivity extends Activity {
     scroll.addView(view);
 
     AlertDialog dialog = new AlertDialog.Builder(this)
-        .setTitle("第三方开源许可")
+        .setTitle(component[0])
         .setPositiveButton("关闭", null)
         .create();
     dialog.setView(scroll);
     dialog.show();
-  }
-
-  /** 把 assets 里的一份许可文件拼进 body：标题 + 完整正文。 */
-  private void appendLicense(StringBuilder body, String title, String assetPath) {
-    body.append("── ").append(title).append(" ──\n");
-    try (java.io.BufferedReader reader = new java.io.BufferedReader(
-        new java.io.InputStreamReader(getAssets().open(assetPath)))) {
-      String line;
-      while ((line = reader.readLine()) != null) body.append(line).append('\n');
-    } catch (Exception error) {
-      body.append("（许可文件读取失败：").append(error.getMessage()).append("）\n");
-    }
-    body.append("\n\n");
   }
 
   private void updateSshUi() {
