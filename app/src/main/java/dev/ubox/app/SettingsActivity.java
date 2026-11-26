@@ -37,7 +37,16 @@ public class SettingsActivity extends Activity {
     String installCommand() {
       switch (kind) {
         case APT: return "ubox-install apt " + String.join(" ", packages);
-        case NPM: return "ubox-install npm " + String.join(" ", packages);
+        case NPM:
+          // 平台二进制包（如 @opencode/cli-linux-arm64）的 package.json 没有 bin 字段，
+          // npm install -g 不会把命令注册进 PATH，装完 command -v 检测不到。这里在
+          // npm 装完后补建软链（仅当命令缺失且二进制存在时），不影响自带 bin 的包。
+          String bin = check, pkg = packages[0];
+          return "ubox-install npm " + pkg
+              + " && command -v " + bin + " >/dev/null 2>&1 || { f=$(npm root -g)"
+              + "/" + pkg + "/bin/" + bin
+              + "; [ -x \"$f\" ] && ln -sf \"$f\" /usr/local/bin/" + bin
+              + " && echo 已为 " + bin + " 创建命令链接 || echo 未找到 " + bin + " 二进制; }";
         default: return "ubox-install node";
       }
     }
@@ -90,7 +99,7 @@ public class SettingsActivity extends Activity {
         apt("build", "编译工具链", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
     new Section(
         "AI Agent（需要 Node.js，未安装时会自动先装）",
-        npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli", "opencode", "@opencode/cli"),
+        npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli-linux-arm64", "opencode", "@opencode/cli-linux-arm64"),
         npm("claude", "Claude Code", "Anthropic · npm @anthropic-ai/claude-code", "claude",
             "@anthropic-ai/claude-code"),
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
