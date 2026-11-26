@@ -53,8 +53,8 @@ public class MainActivity extends Activity {
   private TerminalService service;
   private boolean bound;
   private int textSize;
-  private boolean ctrlDown, altDown;
-  private Button ctrlButton, altButton;
+  private boolean ctrlDown, altDown, shiftDown;
+  private Button ctrlButton, altButton, shiftButton;
 
   private final ServiceConnection connection =
       new ServiceConnection() {
@@ -402,28 +402,35 @@ public class MainActivity extends Activity {
   // ---------------------------------------------------------------- 额外按键
 
   private void buildExtraKeys() {
-    LinearLayout row = findViewById(R.id.extra_keys);
-    addKey(row, "ESC", v -> sendKey(KeyEvent.KEYCODE_ESCAPE));
-    addKey(row, "TAB", v -> sendKey(KeyEvent.KEYCODE_TAB));
-    ctrlButton = addKey(row, "CTRL", v -> {
+    LinearLayout row1 = findViewById(R.id.extra_row_1);
+    LinearLayout row2 = findViewById(R.id.extra_row_2);
+    addKey(row1, "ESC", v -> sendKey(KeyEvent.KEYCODE_ESCAPE));
+    addKey(row1, "TAB", v -> sendKey(KeyEvent.KEYCODE_TAB));
+    shiftButton = addKey(row1, "SHIFT", v -> {
+      shiftDown = !shiftDown;
+      refreshModifiers();
+    });
+    ctrlButton = addKey(row1, "CTRL", v -> {
       ctrlDown = !ctrlDown;
       refreshModifiers();
     });
-    altButton = addKey(row, "ALT", v -> {
+    altButton = addKey(row1, "ALT", v -> {
       altDown = !altDown;
       refreshModifiers();
     });
-    addKey(row, "←", v -> sendKey(KeyEvent.KEYCODE_DPAD_LEFT));
-    addKey(row, "↓", v -> sendKey(KeyEvent.KEYCODE_DPAD_DOWN));
-    addKey(row, "↑", v -> sendKey(KeyEvent.KEYCODE_DPAD_UP));
-    addKey(row, "→", v -> sendKey(KeyEvent.KEYCODE_DPAD_RIGHT));
+    addKey(row1, "回车", v -> sendKey(KeyEvent.KEYCODE_ENTER));
+    addKey(row1, "←", v -> sendKey(KeyEvent.KEYCODE_DPAD_LEFT));
+    addKey(row1, "↓", v -> sendKey(KeyEvent.KEYCODE_DPAD_DOWN));
+    addKey(row1, "↑", v -> sendKey(KeyEvent.KEYCODE_DPAD_UP));
+    addKey(row1, "→", v -> sendKey(KeyEvent.KEYCODE_DPAD_RIGHT));
+
     for (String symbol : new String[] {"-", "/", "|", "~", "*", "$", "&"})
-      addKey(row, symbol, v -> terminalView.inputCodePoint(symbol.codePointAt(0), false, false));
-    addKey(row, "HOME", v -> sendKey(KeyEvent.KEYCODE_MOVE_HOME));
-    addKey(row, "END", v -> sendKey(KeyEvent.KEYCODE_MOVE_END));
-    addKey(row, "PGUP", v -> sendKey(KeyEvent.KEYCODE_PAGE_UP));
-    addKey(row, "PGDN", v -> sendKey(KeyEvent.KEYCODE_PAGE_DOWN));
-    addKey(row, "粘贴", v -> sessionClient.onPasteTextFromClipboard(terminalView.getCurrentSession()));
+      addKey(row2, symbol, v -> terminalView.inputCodePoint(symbol.codePointAt(0), false, false));
+    addKey(row2, "HOME", v -> sendKey(KeyEvent.KEYCODE_MOVE_HOME));
+    addKey(row2, "END", v -> sendKey(KeyEvent.KEYCODE_MOVE_END));
+    addKey(row2, "PGUP", v -> sendKey(KeyEvent.KEYCODE_PAGE_UP));
+    addKey(row2, "PGDN", v -> sendKey(KeyEvent.KEYCODE_PAGE_DOWN));
+    addKey(row2, "粘贴", v -> sessionClient.onPasteTextFromClipboard(terminalView.getCurrentSession()));
   }
 
   private Button addKey(LinearLayout row, String label, View.OnClickListener listener) {
@@ -431,16 +438,16 @@ public class MainActivity extends Activity {
     button.setText(label);
     button.setAllCaps(false);
     button.setTextColor(Color.WHITE);
-    button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+    button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
     button.setGravity(Gravity.CENTER);
     button.setMinWidth(0);
     button.setMinimumWidth(0);
     int pad = (int) TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics());
+        TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics());
     button.setPadding(pad, 0, pad, 0);
     button.setOnClickListener(listener);
     row.addView(button, new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT));
+        0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
     return button;
   }
 
@@ -451,6 +458,7 @@ public class MainActivity extends Activity {
   private void refreshModifiers() {
     ctrlButton.setTextColor(ctrlDown ? 0xFFE95420 : Color.WHITE);
     altButton.setTextColor(altDown ? 0xFFE95420 : Color.WHITE);
+    shiftButton.setTextColor(shiftDown ? 0xFFE95420 : Color.WHITE);
   }
 
   // ---------------------------------------------------------------- Termux 回调
@@ -537,7 +545,12 @@ public class MainActivity extends Activity {
 
         @Override
         public boolean readShiftKey() {
-          return false;
+          boolean value = shiftDown;
+          if (value) {
+            shiftDown = false;
+            refreshModifiers();
+          }
+          return value;
         }
 
         @Override
