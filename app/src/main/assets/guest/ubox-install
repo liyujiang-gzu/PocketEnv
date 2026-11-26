@@ -5,6 +5,7 @@
 #   ubox-install node [主版本]
 #   ubox-install uv
 #   ubox-install go
+#   ubox-install gradle
 set -uo pipefail
 export DEBIAN_FRONTEND=noninteractive
 umask 022
@@ -58,6 +59,35 @@ case "$kind" in
     ln -sf /usr/local/go/bin/go /usr/local/bin/go
     ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
     go version
+    ;;
+  gradle)
+    # Gradle 9 不在 apt 源里（自带版本太旧），走官方 bin 分发包。纯 Java 程序，
+    # 与 CPU 架构无关；解压到 /usr/local/gradle，软链 gradle 到 /usr/local/bin。
+    # 优先腾讯云镜像（国内快），校验失败回退官方站；sha256 校验防篡改。
+    GRADLE_VER=9.9.2
+    GRADLE_ZIP="gradle-${GRADLE_VER}-bin.zip"
+    GRADLE_SHA=971fcd7150ca4ba04852c0b2ca0d2d0ab9468e14b03473eab19528809914c76b
+    if [ -x /usr/local/gradle/bin/gradle ]; then
+      echo "==> Gradle 已安装: $(/usr/local/gradle/bin/gradle --version | grep -m1 '^Gradle ')"
+      exit 0
+    fi
+    # Gradle 9 需要 Java 17+ 才能运行；缺失时先装 JDK（同 uv 自动装 Python）
+    command -v java >/dev/null 2>&1 || { echo "==> 需要 Java，先安装 OpenJDK 17"; ubox-install apt openjdk-17-jdk-headless; }
+    command -v unzip >/dev/null 2>&1 || ubox-install apt unzip
+    echo "==> 下载 Gradle ${GRADLE_VER}"
+    tmp=$(mktemp -d)
+    ok=0
+    for base in "https://mirrors.cloud.tencent.com/gradle" "https://services.gradle.org/distributions"; do
+      echo "==> 尝试 ${base}"
+      curl -fL "$base/$GRADLE_ZIP" -o "$tmp/$GRADLE_ZIP" || continue
+      if echo "${GRADLE_SHA}  $tmp/$GRADLE_ZIP" | sha256sum -c -; then ok=1; break; fi
+      echo "==> 校验和不匹配，换下一个源"
+    done
+    [ "$ok" = 1 ] || { echo "==> 下载/校验失败"; rm -rf "$tmp"; exit 1; }
+    unzip -q "$tmp/$GRADLE_ZIP" -d "$tmp"
+    rm -rf /usr/local/gradle && mv "$tmp/gradle-$GRADLE_VER" /usr/local/gradle && rm -rf "$tmp"
+    ln -sf /usr/local/gradle/bin/gradle /usr/local/bin/gradle
+    gradle --version
     ;;
   *) echo "未知类型: $kind"; exit 2 ;;
 esac

@@ -28,7 +28,7 @@ public class SettingsActivity extends Activity {
   static final String EXTRA_COMMAND = "command";
   private static final String TAG = "UbuntuBox";
 
-  enum Kind { APT, NODE, NPM, UV, GO, CURL }
+  enum Kind { APT, NODE, NPM, UV, GO, CURL, GRADLE }
 
   /** packages：apt/npm 包名；check：NODE/NPM 用来判断是否已安装的命令名。 */
   record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
@@ -47,6 +47,7 @@ public class SettingsActivity extends Activity {
               + " && echo 已为 " + bin + " 创建命令链接 || echo 未找到 " + bin + " 二进制; }";
         case UV: return "ubox-install uv";
         case GO: return "ubox-install go";
+        case GRADLE: return "ubox-install gradle";
         case CURL: return "curl -fsSL " + packages[0] + " | bash";
         default: return "ubox-install node";
       }
@@ -60,6 +61,8 @@ public class SettingsActivity extends Activity {
             + " && echo 已卸载 uv";
         case GO: return "rm -rf /usr/local/go /usr/local/bin/go /usr/local/bin/gofmt"
             + " && echo 已卸载 Go";
+        case GRADLE: return "rm -rf /usr/local/gradle /usr/local/bin/gradle"
+            + " && echo 已卸载 Gradle";
         case CURL:
           if (id.equals("qwen"))
             // qwen 装到 ~/.local/bin/qwen + ~/.local/lib/qwen-code，PATH block 写进 .bashrc
@@ -91,6 +94,11 @@ public class SettingsActivity extends Activity {
         // command -v go 通常能命中；再回退检查 /usr/local/go/bin/go 兜底。
         return "if command -v go >/dev/null 2>&1 || [ -x /usr/local/go/bin/go ]; "
             + "then echo " + id + "=1; else echo " + id + "=0; fi";
+      if (kind == Kind.GRADLE)
+        // Gradle 解压到 /usr/local/gradle 并软链 gradle 到 /usr/local/bin。软链在
+        // PATH 里，command -v gradle 通常能命中；再回退检查实际目录兜底。
+        return "if command -v gradle >/dev/null 2>&1 || [ -x /usr/local/gradle/bin/gradle ]; "
+            + "then echo " + id + "=1; else echo " + id + "=0; fi";
       if (kind == Kind.CURL) {
         // curl 脚本装到各自目录并把该目录写进 .bashrc 的 PATH。非交互 shell 不一定
         // source .bashrc，故再回退检查实际二进制：opencode 在 ~/.opencode/bin，
@@ -117,6 +125,10 @@ public class SettingsActivity extends Activity {
     return new Tool(id, title, summary, Kind.GO, new String[0], "go");
   }
 
+  private static Tool gradle(String id, String title, String summary) {
+    return new Tool(id, title, summary, Kind.GRADLE, new String[0], "gradle");
+  }
+
   /** curl 官方脚本安装（packages[0] = 安装脚本 URL），check = 装完的命令名。 */
   private static Tool curl(String id, String title, String summary, String url, String bin) {
     return new Tool(id, title, summary, Kind.CURL, new String[] {url}, bin);
@@ -141,6 +153,9 @@ public class SettingsActivity extends Activity {
         new Tool("uv", "uv", "Astral 出品的高速 Python 包管理器（替代 pip/venv），需先装 Python 3",
             Kind.UV, new String[0], "uv"),
         apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential"),
+        apt("jdk17", "OpenJDK 17", "Java/Kotlin 开发工具包 17；Gradle 9 运行需要", "openjdk-17-jdk"),
+        apt("maven3", "Maven 3", "Java 项目构建与依赖管理（apt 自带 3.x）", "maven"),
+        gradle("gradle9", "Gradle 9", "官方 9.x 二进制包（腾讯云镜像 + 校验），缺 Java 时自动装 OpenJDK 17"),
         go("golang", "Go", "官方 linux-arm64 tarball（golang.google.cn 镜像），含 go、gofmt")),
     new Section(
         "编程智能体",
