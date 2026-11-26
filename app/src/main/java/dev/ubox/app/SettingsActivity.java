@@ -119,7 +119,7 @@ public class SettingsActivity extends Activity {
         apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential"),
         go("golang", "Go", "官方 linux-arm64 tarball（golang.google.cn 镜像），含 go、gofmt")),
     new Section(
-        "AI Agent（需要 Node.js）",
+        "编程智能体（需要 Node.js）",
         npm("opencode", "OpenCode", "OpenCode 2.x · npm @opencode/cli", "opencode", "@opencode/cli"),
         npm("claude", "Claude Code", "Anthropic · npm @anthropic-ai/claude-code", "claude",
             "@anthropic-ai/claude-code"),
@@ -151,12 +151,18 @@ public class SettingsActivity extends Activity {
     {"tencent", "腾讯云", "https://mirrors.cloud.tencent.com/pypi/simple"},
   };
 
+  /** GO 源（Go 模块代理 GOPROXY）：id、名称、URL。切换走 ubox-goproxy。 */
+  private static final String[][] GO_PROXIES = {
+    {"official", "官方（默认）", "https://proxy.golang.org"},
+    {"goproxy", "七牛云（推荐）", "https://goproxy.cn"},
+  };
+
   /** 项目 Gitee 开源地址，「关于我们」跳转用。 */
   private static final String GITEE_URL = "https://gitee.com/li_yu_jiang/ubuntu-box";
 
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
-  private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, statusLine;
+  private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, goProxyValue, statusLine;
   private TextView sshState, sshCommand, sshKeys, sshPassword;
   private Button sshButton;
   private boolean sshInstalled;
@@ -211,6 +217,12 @@ public class SettingsActivity extends Activity {
     pypiMirrorValue.setText("读取中…");
     pypiRow.setOnClickListener(v -> choosePypiMirror());
     list.addView(pypiRow);
+
+    LinearLayout goRow = row("GO 源", null);
+    goProxyValue = (TextView) ((LinearLayout) goRow.getChildAt(0)).getChildAt(1);
+    goProxyValue.setText("读取中…");
+    goRow.setOnClickListener(v -> chooseGoProxy());
+    list.addView(goRow);
 
     for (Section section : SECTIONS) {
       list.addView(header(section.title()));
@@ -279,6 +291,9 @@ public class SettingsActivity extends Activity {
     // PyPI 源读 pip.conf 的 index-url（uv.toml 与之同步，展示以 pip 为准），同样空格分隔
     script.append("echo pypi $(grep -m1 '^index-url' $HOME/.config/pip/pip.conf 2>/dev/null"
         + " | sed 's/^index-url[[:space:]]*=[[:space:]]*//')\n");
+    // GO 源读 GOPROXY（切换脚本写入 /etc/profile.d/goproxy.sh），空格分隔避免 URL 里的 =
+    script.append("echo goproxy $(grep -m1 '^export GOPROXY' /etc/profile.d/goproxy.sh 2>/dev/null"
+        + " | sed -e 's/^export GOPROXY=//' -e 's/,direct$//' -e 's/\"//g')\n");
     for (Section section : SECTIONS)
       for (Tool tool : section.tools()) script.append(tool.statusCheck()).append('\n');
     script.append("[ -x /usr/sbin/sshd ] && echo sshd=1 || echo sshd=0\n");
@@ -298,6 +313,7 @@ public class SettingsActivity extends Activity {
               String mirror = "";
               String npmRegistry = "";
               String pypiMirror = "";
+              String goProxy = "";
               int keys = 0;
               for (String line : output.split("\n")) {
                 // npm 源行是空格分隔（URL 含 = ），单独处理
@@ -308,6 +324,11 @@ public class SettingsActivity extends Activity {
                 // PyPI 源行同样空格分隔
                 if (line.startsWith("pypi ")) {
                   pypiMirror = line.substring("pypi ".length()).trim();
+                  continue;
+                }
+                // GO 源行同样空格分隔
+                if (line.startsWith("goproxy ")) {
+                  goProxy = line.substring("goproxy ".length()).trim();
                   continue;
                 }
                 int split = line.indexOf('=');
@@ -321,6 +342,7 @@ public class SettingsActivity extends Activity {
               String mirrorText = describeMirror(mirror);
               String npmRegistryText = describeNpmRegistry(npmRegistry);
               String pypiMirrorText = describePypiMirror(pypiMirror);
+              String goProxyText = describeGoProxy(goProxy);
               runOnUiThread(
                   () -> {
                     installed.clear();
@@ -328,6 +350,7 @@ public class SettingsActivity extends Activity {
                     mirrorValue.setText(mirrorText);
                     npmRegistryValue.setText(npmRegistryText);
                     pypiMirrorValue.setText(pypiMirrorText);
+                    goProxyValue.setText(goProxyText);
                     sshInstalled = Boolean.TRUE.equals(result.get("sshd"));
                     sshHasPassword = Boolean.TRUE.equals(result.get("sshpw"));
                     sshKeyCount = keyCount;
@@ -468,6 +491,47 @@ public class SettingsActivity extends Activity {
                   });
             },
             "settings-pypi-mirror")
+        .start();
+  }
+
+  private static String describeGoProxy(String url) {
+    if (url.isEmpty()) return "官方默认（未配置）";
+    for (String[] proxy : GO_PROXIES)
+      if (url.startsWith(proxy[2])) return proxy[1] + " · " + proxy[2];
+    return url;
+  }
+
+  private void chooseGoProxy() {
+    String[] labels = new String[GO_PROXIES.length];
+    for (int i = 0; i < GO_PROXIES.length; i++)
+      labels[i] = GO_PROXIES[i][1] + "\n" + GO_PROXIES[i][2];
+    new AlertDialog.Builder(this)
+        .setTitle("选择 GO 源（Go 模块代理）")
+        .setItems(
+            labels,
+            (dialog, which) -> applyGoProxy(GO_PROXIES[which][0], GO_PROXIES[which][1]))
+        .show();
+  }
+
+  private void applyGoProxy(String id, String label) {
+    goProxyValue.setText("切换中…");
+    new Thread(
+            () -> {
+              String message;
+              try {
+                proot.run("ubox-goproxy " + id, 15_000);
+                message = "已切换到" + label + "（GOPROXY）";
+              } catch (Exception error) {
+                message = "切换失败：" + error.getMessage();
+              }
+              String toast = message;
+              runOnUiThread(
+                  () -> {
+                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+                    refreshStatus();
+                  });
+            },
+            "settings-go-proxy")
         .start();
   }
 
