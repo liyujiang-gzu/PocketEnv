@@ -31,9 +31,10 @@ public class LicensesActivity extends Activity {
     list.setPadding(UiViews.dp(this, 16), UiViews.dp(this, 8), UiViews.dp(this, 16), UiViews.dp(this, 24));
 
     for (int i = 0; i < THIRD_PARTY.length; i++) {
-      LinearLayout componentRow = UiViews.row(this, THIRD_PARTY[i][0], null);
-      UiViews.subtitle(componentRow).setText(THIRD_PARTY[i][1] + " · " + THIRD_PARTY[i][2]);
-      componentRow.setOnClickListener(v -> showLicenseDetail(THIRD_PARTY[i]));
+      final String[] item = THIRD_PARTY[i];
+      LinearLayout componentRow = UiViews.row(this, item[0], null);
+      UiViews.subtitle(componentRow).setText(item[1] + " · " + item[2]);
+      componentRow.setOnClickListener(v -> showLicenseDetail(item));
       list.addView(componentRow);
     }
 
