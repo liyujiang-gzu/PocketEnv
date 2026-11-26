@@ -101,37 +101,21 @@ for tool in aapt2 aidl zipalign split-select; do
   install -m 755 "$tmp/$tool" "$SDK/build-tools/$BT_DIR/$tool"
 done
 
-# 官方 zip 里剩下的 host 二进制（dexdump、renderscript 的 lld 等）都是 x86_64，
-# ARM64 上跑不起来；AGP 编译 APK 用不到，删掉比留个坏的强。用 ELF 头的
-# e_machine（偏移 0x12，小端）判断：x86_64=0x3E，aarch64=0xB7。
-while IFS= read -r f; do
-  magic=$(head -c4 "$f" | od -An -tx1 | tr -d ' \n')
-  [ "$magic" = "7f454c46" ] || continue
-  case "$(od -An -tx1 -j18 -N2 "$f" | tr -d ' \n')" in
-    3e00) echo "==> 删除 x86_64 二进制: ${f#$SDK/build-tools/$BT_DIR/}"; rm -f "$f" ;;
-  esac
-done < <(find "$SDK/build-tools/$BT_DIR" -type f)
+# 官方 zip 里其余 host 二进制（aapt、dexdump、renderscript 的 lld 等）仍是
+# x86_64，ARM64 上跑不起来；但 AGP 对 build-tools 做的是「存在性检查」
+# （缺一个就报 Installed Build Tools revision is corrupted），且实际构建只用
+# aapt2/d8/zipalign。所以全部保留以通过检查，编译路径则用上面替换的 arm64 版。
 
-# 4) 官方 zip 不带 package.xml，AGP 认不出这个包，补一份
-cat > "$SDK/platforms/$PLATFORM_DIR/package.xml" <<'EOF'
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<ns2:repository xmlns:ns2="http://schemas.android.com/repository/android/common/02"
-                xmlns:ns3="http://schemas.android.com/repository/android/platform/02">
-  <localPackage path="platforms;android-36" obsolete="false">
-    <type-details xsi:type="ns3:platformDetailsType"
-                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  api-level="36" min-tools-rev="22"/>
-    <revision><major>36</major><minor>0</minor><micro>2</micro></revision>
-    <display-name>Android SDK Platform 36</display-name>
-    <uses-license ref="android-sdk-license"/>
-  </localPackage>
-</ns2:repository>
-EOF
-
+# 4) build-tools 的官方 zip 不带 package.xml，AGP 认不出这个包，补一份。
+#    注意：platforms/android-36 官方 zip 本来就没有 package.xml（AGP 靠
+#    android.jar + source.properties 识别），不要补，补了反而解析报错。
 cat > "$SDK/build-tools/$BT_DIR/package.xml" <<'EOF'
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <ns2:repository xmlns:ns2="http://schemas.android.com/repository/android/common/02"
                 xmlns:ns3="http://schemas.android.com/repository/android/generic/02">
+  <license id="android-sdk-license" type="text">
+8933bad161af4178b1185d1a37fbf41ea5269c55
+</license>
   <localPackage path="build-tools;36.0.0" obsolete="false">
     <type-details xsi:type="ns3:genericDetailsType"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
