@@ -19,6 +19,7 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.provider.DocumentsContract;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -31,6 +32,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.termux.terminal.TerminalSession;
@@ -219,7 +221,7 @@ public class MainActivity extends Activity {
   public boolean onOptionsItemSelected(MenuItem item) {
     int id = item.getItemId();
     if (id == R.id.menu_new_session) newSession();
-    else if (id == R.id.menu_sessions) chooseSession();
+    else if (id == R.id.menu_sessions) manageSessions();
     else if (id == R.id.menu_settings)
       startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_SETTINGS);
     else if (id == R.id.menu_keyboard) showKeyboard();
@@ -247,19 +249,91 @@ public class MainActivity extends Activity {
     }
   }
 
-  private void chooseSession() {
+  /** 会话管理弹窗：每行一个会话，可切换或删除。 */
+  private void manageSessions() {
     if (service == null) return;
-    List<TerminalSession> sessions = service.sessions();
-    String[] names = new String[sessions.size()];
-    for (int i = 0; i < names.length; i++) {
-      TerminalSession s = sessions.get(i);
-      names[i] = s.mSessionName + (s.isRunning() ? "" : "（已退出）")
-          + (s.getTitle() == null ? "" : " · " + s.getTitle());
+    if (service.sessions().isEmpty()) {
+      newSession();
+      return;
     }
-    new AlertDialog.Builder(this)
-        .setTitle("切换会话")
-        .setItems(names, (dialog, which) -> attach(sessions.get(which)))
-        .show();
+    LinearLayout list = new LinearLayout(this);
+    list.setOrientation(LinearLayout.VERTICAL);
+    int pad = (int) (8 * getResources().getDisplayMetrics().density);
+    list.setPadding(pad, pad, pad, pad);
+    ScrollView scroll = new ScrollView(this);
+    scroll.addView(list);
+
+    AlertDialog dialog =
+        new AlertDialog.Builder(this)
+            .setTitle("管理会话")
+            .setView(scroll)
+            .setNegativeButton("关闭", null)
+            .create();
+
+    Runnable[] refresh = new Runnable[1];
+    refresh[0] =
+        () -> {
+          list.removeAllViews();
+          List<TerminalSession> sessions = service.sessions();
+          if (sessions.isEmpty()) {
+            dialog.dismiss();
+            newSession();
+            return;
+          }
+          for (TerminalSession session : List.copyOf(sessions)) {
+            list.addView(sessionRow(session, dialog, refresh[0]));
+          }
+        };
+    refresh[0].run();
+    dialog.show();
+  }
+
+  /** 管理弹窗的一行：名称 + 切换 + 删除。 */
+  private View sessionRow(TerminalSession session, AlertDialog dialog, Runnable refresh) {
+    LinearLayout row = new LinearLayout(this);
+    row.setOrientation(LinearLayout.HORIZONTAL);
+    row.setGravity(Gravity.CENTER_VERTICAL);
+
+    String title = session.getTitle();
+    TextView label = new TextView(this);
+    label.setText(
+        session.mSessionName
+            + (session.isRunning() ? "" : "（已退出）")
+            + (title == null || title.isEmpty() ? "" : " · " + title));
+    label.setSingleLine(true);
+    label.setEllipsize(TextUtils.TruncateAt.END);
+    int pad = (int) (8 * getResources().getDisplayMetrics().density);
+    label.setPadding(pad, pad, pad, pad);
+    row.addView(
+        label,
+        new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+    Button switchButton = new Button(this);
+    switchButton.setText("切换");
+    switchButton.setMinimumWidth(0);
+    switchButton.setOnClickListener(
+        v -> {
+          attach(session);
+          dialog.dismiss();
+        });
+    row.addView(switchButton);
+
+    Button deleteButton = new Button(this);
+    deleteButton.setText("删除");
+    deleteButton.setMinimumWidth(0);
+    deleteButton.setOnClickListener(v -> deleteSession(session, dialog, refresh));
+    row.addView(deleteButton);
+    return row;
+  }
+
+  /** 删除会话；删的是当前会话时切到最后一个，全部删完则新建一个。 */
+  private void deleteSession(TerminalSession session, AlertDialog dialog, Runnable refresh) {
+    if (service == null) return;
+    boolean current = session == terminalView.getCurrentSession();
+    service.removeSession(session);
+    List<TerminalSession> remaining = service.sessions();
+    if (current && !remaining.isEmpty()) attach(remaining.get(remaining.size() - 1));
+    refresh.run();
   }
 
   private void requestStorage() {
