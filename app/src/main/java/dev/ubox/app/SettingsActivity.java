@@ -682,8 +682,18 @@ public class SettingsActivity extends Activity {
         .setTitle("重置 Ubuntu 环境")
         .setMessage("将结束所有会话并删除整个 Ubuntu 环境（包括 /root 下的所有文件和已安装的软件），然后重新解压。此操作不可恢复。")
         .setNegativeButton("取消", null)
+        .setPositiveButton("删除并重置", (dialog, which) -> confirmResetAgain())
+        .show();
+  }
+
+  /** 重置不可恢复，再确认一次。 */
+  private void confirmResetAgain() {
+    new AlertDialog.Builder(this)
+        .setTitle("确认重置？")
+        .setMessage("删除后无法恢复 /root 下的文件和已安装的软件，确定继续吗？")
+        .setNegativeButton("取消", null)
         .setPositiveButton(
-            "删除并重置",
+            "确认重置",
             (dialog, which) -> {
               setResult(RESULT_OK, new Intent().putExtra(EXTRA_RESET, true));
               finish();
