@@ -151,9 +151,9 @@ public class SettingsActivity extends Activity {
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
         npm("gemini", "Gemini CLI", "Google · npm @google/gemini-cli", "gemini",
             "@google/gemini-cli"),
-        npm("codebuddy", "CodeBuddy", "腾讯 · npm @tencent-ai/codebuddy-code，装完即可用无需验证",
+        npm("codebuddy", "CodeBuddy", "Tencent · npm @tencent-ai/codebuddy-code",
             "codebuddy", "@tencent-ai/codebuddy-code"),
-        curl("qwen", "QwenCode", "阿里 · 官方脚本安装 QwenCode，装到 ~/.local，无需验证",
+        curl("qwen", "QwenCode", "Alibaba · 官方脚本安装 QwenCode，装到 ~/.local",
             "https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh",
             "qwen")),
   };
