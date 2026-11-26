@@ -60,9 +60,16 @@ public class SettingsActivity extends Activity {
             + " && echo 已卸载 uv";
         case GO: return "rm -rf /usr/local/go /usr/local/bin/go /usr/local/bin/gofmt"
             + " && echo 已卸载 Go";
-        case CURL: return "rm -rf \"$HOME/.opencode\""
-            + " && sed -i '/# opencode/d; /\\.opencode\\/bin/d' \"$HOME/.bashrc\""
-            + " && echo 已卸载 OpenCode";
+        case CURL:
+          if (id.equals("qwen"))
+            // qwen 装到 ~/.local/bin/qwen + ~/.local/lib/qwen-code，PATH block 写进 .bashrc
+            return "rm -f \"$HOME/.local/bin/qwen\" && rm -rf \"$HOME/.local/lib/qwen-code\""
+                + " && sed -i '/# Qwen Code PATH block begin/,/# Qwen Code PATH block end/d'"
+                + " \"$HOME/.bashrc\" && echo 已卸载 QwenCode";
+          // opencode 装到 ~/.opencode
+          return "rm -rf \"$HOME/.opencode\""
+              + " && sed -i '/# opencode/d; /\\.opencode\\/bin/d' \"$HOME/.bashrc\""
+              + " && echo 已卸载 OpenCode";
         default: return "rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx"
             + " /usr/local/bin/corepack /usr/local/lib/node_modules/npm /usr/local/include/node"
             + " && echo 已卸载 Node.js";
@@ -84,11 +91,14 @@ public class SettingsActivity extends Activity {
         // command -v go 通常能命中；再回退检查 /usr/local/go/bin/go 兜底。
         return "if command -v go >/dev/null 2>&1 || [ -x /usr/local/go/bin/go ]; "
             + "then echo " + id + "=1; else echo " + id + "=0; fi";
-      if (kind == Kind.CURL)
-        // curl 脚本装到 ~/.opencode/bin/opencode，并把该目录写进 .bashrc 的 PATH。
-        // 非交互 shell 不一定 source .bashrc，故再回退检查实际二进制。
-        return "if command -v " + check + " >/dev/null 2>&1 || [ -x \"$HOME/.opencode/bin/" + check + "\" ]; "
+      if (kind == Kind.CURL) {
+        // curl 脚本装到各自目录并把该目录写进 .bashrc 的 PATH。非交互 shell 不一定
+        // source .bashrc，故再回退检查实际二进制：opencode 在 ~/.opencode/bin，
+        // qwen 在 ~/.local/bin。
+        String curlBin = id.equals("qwen") ? "$HOME/.local/bin" : "$HOME/.opencode/bin";
+        return "if command -v " + check + " >/dev/null 2>&1 || [ -x \"" + curlBin + "/" + check + "\" ]; "
             + "then echo " + id + "=1; else echo " + id + "=0; fi";
+      }
       return "command -v " + check + " >/dev/null 2>&1 && echo " + id + "=1 || echo " + id + "=0";
     }
   }
@@ -142,7 +152,10 @@ public class SettingsActivity extends Activity {
         npm("gemini", "Gemini CLI", "Google · npm @google/gemini-cli", "gemini",
             "@google/gemini-cli"),
         npm("codebuddy", "CodeBuddy", "腾讯 · npm @tencent-ai/codebuddy-code，装完即可用无需验证",
-            "codebuddy", "@tencent-ai/codebuddy-code")),
+            "codebuddy", "@tencent-ai/codebuddy-code"),
+        curl("qwen", "QwenCode", "阿里 · 官方脚本安装 QwenCode，装到 ~/.local，无需验证",
+            "https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh",
+            "qwen")),
   };
 
   private static final String[][] MIRRORS = {
