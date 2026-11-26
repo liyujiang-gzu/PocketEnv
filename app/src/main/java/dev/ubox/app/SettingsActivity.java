@@ -112,14 +112,14 @@ public class SettingsActivity extends Activity {
 
   private static final String[][] MIRRORS = {
     {"official", "官方（默认）", "ports.ubuntu.com"},
-    {"tuna", "清华（中国大陆推荐）", "mirrors.tuna.tsinghua.edu.cn"},
+    {"tuna", "清华（推荐）", "mirrors.tuna.tsinghua.edu.cn"},
     {"ustc", "中科大", "mirrors.ustc.edu.cn"},
     {"aliyun", "阿里云", "mirrors.aliyun.com"},
   };
 
   /** npm 源（registry）：id、名称、URL。切换走 ubox-npm-registry。 */
   private static final String[][] NPM_REGISTRIES = {
-    {"official", "官方", "https://registry.npmjs.org"},
+    {"official", "官方（默认）", "https://registry.npmjs.org"},
     {"aliyun", "阿里云（推荐）", "https://registry.npmmirror.com"},
     {"tencent", "腾讯云", "https://mirrors.cloud.tencent.com/npm"},
     {"huawei", "华为云", "https://repo.huaweicloud.com/repository/npm"},
@@ -165,7 +165,7 @@ public class SettingsActivity extends Activity {
     list.addView(statusLine);
 
     list.addView(header("软件源"));
-    LinearLayout mirrorRow = row("apt 软件源", null);
+    LinearLayout mirrorRow = row("apt 源", null);
     mirrorValue = (TextView) ((LinearLayout) mirrorRow.getChildAt(0)).getChildAt(1);
     mirrorValue.setText("读取中…");
     mirrorRow.setOnClickListener(v -> chooseMirror());
