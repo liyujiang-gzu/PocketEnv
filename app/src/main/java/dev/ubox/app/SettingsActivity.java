@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
@@ -137,6 +138,9 @@ public class SettingsActivity extends Activity {
     {"tencent", "腾讯云", "https://mirrors.cloud.tencent.com/pypi/simple"},
   };
 
+  /** 项目 Gitee 开源地址，「关于我们」跳转用。 */
+  private static final String GITEE_URL = "https://gitee.com/li_yu_jiang/ubuntu-box";
+
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
   private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, statusLine;
@@ -177,13 +181,13 @@ public class SettingsActivity extends Activity {
     list.addView(statusLine);
 
     list.addView(header("软件源"));
-    LinearLayout mirrorRow = row("apt 源", null);
+    LinearLayout mirrorRow = row("APT 源", null);
     mirrorValue = (TextView) ((LinearLayout) mirrorRow.getChildAt(0)).getChildAt(1);
     mirrorValue.setText("读取中…");
     mirrorRow.setOnClickListener(v -> chooseMirror());
     list.addView(mirrorRow);
 
-    LinearLayout npmRow = row("npm 源", null);
+    LinearLayout npmRow = row("NPM 源", null);
     npmRegistryValue = (TextView) ((LinearLayout) npmRow.getChildAt(0)).getChildAt(1);
     npmRegistryValue.setText("读取中…");
     npmRow.setOnClickListener(v -> chooseNpmRegistry());
@@ -343,7 +347,7 @@ public class SettingsActivity extends Activity {
     String[] labels = new String[MIRRORS.length];
     for (int i = 0; i < MIRRORS.length; i++) labels[i] = MIRRORS[i][1] + "\n" + MIRRORS[i][2];
     new AlertDialog.Builder(this)
-        .setTitle("选择 apt 软件源")
+        .setTitle("选择 APT 源")
         .setItems(labels, (dialog, which) -> applyMirror(MIRRORS[which][0], MIRRORS[which][1]))
         .show();
   }
@@ -382,7 +386,7 @@ public class SettingsActivity extends Activity {
     for (int i = 0; i < NPM_REGISTRIES.length; i++)
       labels[i] = NPM_REGISTRIES[i][1] + "\n" + NPM_REGISTRIES[i][2];
     new AlertDialog.Builder(this)
-        .setTitle("选择 npm 源")
+        .setTitle("选择 NPM 源")
         .setItems(
             labels,
             (dialog, which) ->
@@ -532,6 +536,72 @@ public class SettingsActivity extends Activity {
     note.setPadding(0, dp(4), 0, 0);
     list.addView(note);
     updateSshUi();
+
+    buildAboutSection(list);
+  }
+
+  // ---------------------------------------------------------------- 关于
+
+  private void buildAboutSection(LinearLayout list) {
+    list.addView(header("关于我们"));
+
+    LinearLayout introRow = row("项目介绍", null);
+    subtitle(introRow).setText("UbuntuBox · 在 Android 上运行完整 Ubuntu 环境，点此访问 Gitee 开源地址");
+    introRow.setOnClickListener(v -> openUrl(GITEE_URL));
+    list.addView(introRow);
+
+    LinearLayout licenseRow = row("第三方开源许可", null);
+    subtitle(licenseRow).setText("查看本应用使用的第三方组件及其许可证");
+    licenseRow.setOnClickListener(v -> showLicenses());
+    list.addView(licenseRow);
+  }
+
+  private void openUrl(String url) {
+    try {
+      startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(url)));
+    } catch (Exception error) {
+      Toast.makeText(this, "无法打开链接：" + url, Toast.LENGTH_LONG).show();
+    }
+  }
+
+  private void showLicenses() {
+    // 直接读 assets/licenses/ 下的真实许可文件，避免手写许可与实际不符。
+    StringBuilder body = new StringBuilder();
+    body.append("UbuntuBox 采用木兰宽松许可证（Mulan PSL v2，见项目 LICENSE）。")
+        .append("本应用基于以下第三方开源组件构建，在此致谢：\n\n");
+    appendLicense(body, "proot — GPL-2.0", "licenses/proot-COPYING.txt");
+    appendLicense(body, "Termux terminal-view / terminal-emulator — Apache-2.0",
+        "licenses/Termux-terminal-Apache-2.0.txt");
+    appendLicense(body, "DSHA (DSH-APP) — MIT", "licenses/DSHA-LICENSE.txt");
+    body.append("Apache Commons Compress — Apache-2.0\n")
+        .append("  https://commons.apache.org/proper/commons-compress/\n\n")
+        .append("ubuntu-box (biyan113) — MIT\n")
+        .append("  https://github.com/biyan113/ubuntu-box\n");
+
+    ScrollView scroll = new ScrollView(this);
+    TextView view = text(body.toString(), 13, 0xFFDDDDDD);
+    view.setPadding(dp(16), dp(12), dp(16), dp(12));
+    scroll.addView(view);
+
+    AlertDialog dialog = new AlertDialog.Builder(this)
+        .setTitle("第三方开源许可")
+        .setPositiveButton("关闭", null)
+        .create();
+    dialog.setView(scroll);
+    dialog.show();
+  }
+
+  /** 把 assets 里的一份许可文件拼进 body：标题 + 完整正文。 */
+  private void appendLicense(StringBuilder body, String title, String assetPath) {
+    body.append("── ").append(title).append(" ──\n");
+    try (java.io.BufferedReader reader = new java.io.BufferedReader(
+        new java.io.InputStreamReader(getAssets().open(assetPath)))) {
+      String line;
+      while ((line = reader.readLine()) != null) body.append(line).append('\n');
+    } catch (Exception error) {
+      body.append("（许可文件读取失败：").append(error.getMessage()).append("）\n");
+    }
+    body.append("\n\n");
   }
 
   private void updateSshUi() {
