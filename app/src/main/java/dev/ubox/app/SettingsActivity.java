@@ -30,7 +30,7 @@ public class SettingsActivity extends Activity {
   static final String EXTRA_COMMAND = "command";
   private static final String TAG = "UbuntuBox";
 
-  enum Kind { APT, NODE, NPM }
+  enum Kind { APT, NODE, NPM, UV }
 
   /** packages：apt/npm 包名；check：NODE/NPM 用来判断是否已安装的命令名。 */
   record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
@@ -47,6 +47,7 @@ public class SettingsActivity extends Activity {
               + "/" + pkg + "/bin/" + bin
               + "; [ -x \"$f\" ] && ln -sf \"$f\" /usr/local/bin/" + bin
               + " && echo 已为 " + bin + " 创建命令链接 || echo 未找到 " + bin + " 二进制; }";
+        case UV: return "ubox-install uv";
         default: return "ubox-install node";
       }
     }
@@ -55,6 +56,8 @@ public class SettingsActivity extends Activity {
       switch (kind) {
         case APT: return "ubox-install apt-remove " + String.join(" ", packages);
         case NPM: return "ubox-install npm-remove " + String.join(" ", packages);
+        case UV: return "rm -f /usr/local/bin/uv \"$HOME/.local/bin/uv\" \"$HOME/.local/bin/uvx\""
+            + " && echo 已卸载 uv";
         default: return "rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx"
             + " /usr/local/bin/corepack /usr/local/lib/node_modules/npm /usr/local/include/node"
             + " && echo 已卸载 Node.js";
@@ -96,6 +99,8 @@ public class SettingsActivity extends Activity {
         new Tool("node", "Node.js 22", "官方 linux-arm64 版本，含 npm；AI Agent 依赖它",
             Kind.NODE, new String[0], "node"),
         apt("python", "Python 3", "python3、pip、venv", "python3", "python3-pip", "python3-venv"),
+        new Tool("uv", "uv", "Astral 出品的高速 Python 包管理器（替代 pip/venv），需先装 Python 3",
+            Kind.UV, new String[0], "uv"),
         apt("build", "编译工具链", "gcc、g++、make；npm 原生模块编译需要", "build-essential")),
     new Section(
         "AI Agent（需要 Node.js，未安装时会自动先装）",

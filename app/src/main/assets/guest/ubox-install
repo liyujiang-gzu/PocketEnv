@@ -3,6 +3,7 @@
 #   ubox-install apt <包...>      ubox-install apt-remove <包...>
 #   ubox-install npm <包...>      ubox-install npm-remove <包...>
 #   ubox-install node [主版本]
+#   ubox-install uv
 set -uo pipefail
 export DEBIAN_FRONTEND=noninteractive
 umask 022
@@ -28,6 +29,15 @@ case "$kind" in
   npm)        need_node && npm install -g "$@" ;;
   npm-remove) npm uninstall -g "$@" ;;
   node)       ubox-node "$@" ;;
+  uv)
+    # uv 用 Astral 官方脚本装到 ~/.local/bin，而该目录不在非交互 shell 的默认
+    # PATH 里，设置页 command -v uv 检测不到。装完补一个软链到 /usr/local/bin
+    # （同 OpenCode 的处理）。uv 依赖 python3/venv，缺失时先装 Python 3 工具链。
+    command -v python3 >/dev/null 2>&1 || { echo "==> 需要 Python 3，先安装"; ubox-install apt python3 python3-venv; }
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    command -v uv >/dev/null 2>&1 || ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv
+    uv --version
+    ;;
   *) echo "未知类型: $kind"; exit 2 ;;
 esac
 rc=$?
