@@ -2,11 +2,16 @@ package dev.ubox.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
@@ -224,6 +229,7 @@ public class SettingsActivity extends Activity {
   private final Map<String, Button> buttons = new HashMap<>();
   private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, goProxyValue, statusLine;
   private TextView sshState, sshCommand, sshKeys, sshPassword;
+  private Button storageButton, batteryButton;
   private Button sshButton;
   private boolean sshInstalled;
   private int sshKeyCount;
@@ -329,6 +335,7 @@ public class SettingsActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    updatePermissionUi();
     refreshStatus();
   }
 
@@ -672,19 +679,71 @@ public class SettingsActivity extends Activity {
     list.addView(note);
     updateSshUi();
 
-    buildEnvironmentSection(list);
+    buildPermissionSection(list);
     buildAboutSection(list);
   }
 
-  // ---------------------------------------------------------------- Ubuntu 环境
+  // ---------------------------------------------------------------- 权限与数据
 
-  private void buildEnvironmentSection(LinearLayout list) {
-    list.addView(header("数据存储"));
+  private void buildPermissionSection(LinearLayout list) {
+    list.addView(header("权限与数据"));
+
+    storageButton = actionButton();
+    storageButton.setOnClickListener(v -> requestAllFilesAccess());
+    LinearLayout storageRow = row("授权访问 /sdcard", storageButton);
+    subtitle(storageRow).setText("开启后新会话可读写手机存储");
+    storageRow.setOnClickListener(v -> requestAllFilesAccess());
+    list.addView(storageRow);
+
+    batteryButton = actionButton();
+    batteryButton.setOnClickListener(v -> requestIgnoreBatteryOptimizations());
+    LinearLayout batteryRow = row("忽略电池优化", batteryButton);
+    subtitle(batteryRow).setText("避免系统后台限制导致会话中断");
+    batteryRow.setOnClickListener(v -> requestIgnoreBatteryOptimizations());
+    list.addView(batteryRow);
 
     LinearLayout resetRow = row("重置 Ubuntu 环境", null);
     subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复");
     resetRow.setOnClickListener(v -> confirmReset());
     list.addView(resetRow);
+  }
+
+  /** 返回设置页时刷新授权与电池优化状态。 */
+  private void updatePermissionUi() {
+    if (storageButton != null)
+      styleGrantButton(storageButton, Environment.isExternalStorageManager());
+    if (batteryButton != null) styleGrantButton(batteryButton, ignoringBatteryOptimizations());
+  }
+
+  private static void styleGrantButton(Button button, boolean granted) {
+    button.setText(granted ? "已开启 ✓" : "开启");
+    button.setTextColor(granted ? 0xFF81C784 : 0xFFE95420);
+  }
+
+  private boolean ignoringBatteryOptimizations() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
+    PowerManager power = (PowerManager) getSystemService(Context.POWER_SERVICE);
+    return power != null && power.isIgnoringBatteryOptimizations(getPackageName());
+  }
+
+  private void requestAllFilesAccess() {
+    if (Environment.isExternalStorageManager()) {
+      Toast.makeText(this, "已授权，新会话中可访问 /sdcard", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    startActivity(
+        new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+            .setData(Uri.parse("package:" + getPackageName())));
+  }
+
+  private void requestIgnoreBatteryOptimizations() {
+    if (ignoringBatteryOptimizations()) {
+      Toast.makeText(this, "已忽略电池优化", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    startActivity(
+        new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            .setData(Uri.parse("package:" + getPackageName())));
   }
 
   private void confirmReset() {

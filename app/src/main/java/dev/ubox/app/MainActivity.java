@@ -12,12 +12,9 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
-import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
@@ -234,7 +231,6 @@ public class MainActivity extends Activity {
       startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_SETTINGS);
     else if (id == R.id.menu_keyboard) showKeyboard();
     else if (id == R.id.menu_wakelock && service != null) service.setWakeLock(!item.isChecked());
-    else if (id == R.id.menu_storage) requestStorage();
     else if (id == R.id.menu_exit && service != null) service.exit();
     else return super.onOptionsItemSelected(item);
     return true;
@@ -358,16 +354,6 @@ public class MainActivity extends Activity {
     service.removeSession(session);
     if (afterSessionRemoved(current)) dialog.dismiss();
     refresh.run();
-  }
-
-  private void requestStorage() {
-    if (Environment.isExternalStorageManager()) {
-      Toast.makeText(this, "已授权，新会话中可访问 /sdcard", Toast.LENGTH_SHORT).show();
-      return;
-    }
-    startActivity(
-        new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-            .setData(Uri.parse("package:" + getPackageName())));
   }
 
   /** 设置页确认重置后回调：删除整个环境并重新解压。 */
