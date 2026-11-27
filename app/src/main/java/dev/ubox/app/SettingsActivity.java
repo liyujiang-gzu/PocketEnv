@@ -439,10 +439,10 @@ public class SettingsActivity extends Activity {
   // ---------------------------------------------------------------- 关于
 
   private void buildAboutSection(LinearLayout list) {
-    list.addView(header("关于我们"));
+    list.addView(header("关于软件"));
 
-    LinearLayout introRow = row("项目介绍", null);
-    subtitle(introRow).setText("口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) ，免 root、免 Termux，内置TypeScript/Python/Go/Java/C等语言编译环境和OpenCode/Codex/CodeBuddy/QwenCode等编程智能体，Ubuntu与Android文件系统互通。");
+    LinearLayout introRow = row("软件介绍", null);
+    subtitle(introRow).setText("口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04，免 root、免 Termux，内置 TypeScript/Python/Java/Go/C 等语言编译环境和 OpenCode/Codex/CodeBuddy/QwenCode 等编程智能体。");
     introRow.setOnClickListener(v -> openUrl(GITEE_URL));
     list.addView(introRow);
 
