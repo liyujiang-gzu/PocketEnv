@@ -1,4 +1,4 @@
-# UbuntuBox - Pocket Develop Environment
+# PocketEnv - Pocket Develop Environment
 
 口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) ，免 root、免 Termux，内置TypeScript/Python/Go/Java/C等语言编译环境和OpenCode/Codex/CodeBuddy/QwenCode等编程智能体，Ubuntu与Android文件系统互通。
 
@@ -37,7 +37,7 @@
 | 文件 | 说明 |
 |------|------|
 | `Rootfs.java` | 首次启动时解压 rootfs 到应用内部存储，写入 DNS、apt、Android 补充组等配置；每次启动时刷新辅助脚本 |
-| `RootfsProvider.java` | SAF DocumentsProvider，将 rootfs 暴露为文件管理器里的「UbuntuBox」存储；除 `/root` 外只读 |
+| `RootfsProvider.java` | SAF DocumentsProvider，将 rootfs 暴露为文件管理器里的「口袋环境」存储；除 `/root` 外只读 |
 | `Proot.java` | 组装 proot 命令行，自动检测是否需要 `--link2symlink`，Android 无权读取某些文件时绑定假数据 |
 | `TerminalService.java` | 前台服务，持有所有终端会话，切到后台后继续运行；支持保持 CPU 唤醒 |
 | `MainActivity.java` | 安装进度界面、终端界面、额外按键（ESC/TAB/CTRL/ALT/方向键等）、多会话管理 |
@@ -54,7 +54,7 @@
 
 ### 在文件管理器里访问 Ubuntu
 
-菜单 →「授权访问 ubuntu」会打开系统文件管理器并定位到 rootfs。也可以在任意支持 SAF 的文件管理器（系统「文件」、MT 管理器等）的存储列表里找到「UbuntuBox」，浏览和复制文件。
+菜单 →「授权访问 ubuntu」会打开系统文件管理器并定位到 rootfs。也可以在任意支持 SAF 的文件管理器（系统「文件」、MT 管理器等）的存储列表里找到「口袋环境」，浏览和复制文件。
 
 - 除 `/root` 外都是只读的
 - `/root` 可直接新建、修改、删除和改名，适合把文件拷进拷出

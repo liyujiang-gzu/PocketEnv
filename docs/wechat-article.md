@@ -1,6 +1,6 @@
 # 不 root、不装 Termux，我把一台完整的 Ubuntu 塞进了手机，还让它跑起了 Claude Code
 
-> 一个下午，从「剥离开源项目」到「SSH 远程登录手机」，记录 UbuntuBox 的诞生和一路踩过的坑。
+> 一个下午，从「剥离开源项目」到「SSH 远程登录手机」，记录口袋环境的诞生和一路踩过的坑。
 
 ---
 
@@ -28,7 +28,7 @@ clone 下来一看，DSHA 有 500 多个 Java 文件。插件系统、备份恢�
 
 rootfs 没有沿用 DSHA 那份，换成了 Canonical 官方的 **Ubuntu Base 24.04**，构建时下载并校验 SHA256，再打进 APK。首次打开时在本地解压，不需要联网。
 
-最后整个应用只有 **5 个核心 Java 类**，安装包大约 **30MB**。我给它起名 **UbuntuBox**。
+最后整个应用只有 **5 个核心 Java 类**，安装包大约 **30MB**。我给它起名 **口袋环境**。
 
 DSHA 是 MIT 协议，剥离和二次开发都没问题，版权声明保留在应用里。
 
@@ -185,6 +185,6 @@ root@localhost:~# claude
 
 ---
 
-**关于开源协议**：UbuntuBox 的代码基于 DSHA（MIT）；proot 采用 GPL-2.0，对外分发 APK 时需要按 GPL 提供对应源码；Termux 终端组件采用 Apache-2.0。感谢这些开源项目。
+**关于开源协议**：口袋环境的代码基于 DSHA（MIT）；proot 采用 GPL-2.0，对外分发 APK 时需要按 GPL 提供对应源码；Termux 终端组件采用 Apache-2.0。感谢这些开源项目。
 
 *（全文完）*

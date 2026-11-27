@@ -91,7 +91,7 @@ final class SshManager {
     try {
       start();
     } catch (IOException error) {
-      android.util.Log.e("UbuntuBox", "ssh autostart failed", error);
+      android.util.Log.e("PocketEnv", "ssh autostart failed", error);
     }
   }
 

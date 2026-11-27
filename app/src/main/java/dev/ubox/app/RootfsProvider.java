@@ -25,7 +25,7 @@ import java.util.Arrays;
 public final class RootfsProvider extends DocumentsProvider {
   static final String AUTHORITY = "dev.ubox.app.rootfs";
   static final String ROOT_ID = "rootfs";
-  private static final String ROOT_NAME = "UbuntuBox";
+  private static final String ROOT_NAME = "口袋环境";
 
   private static final String[] ROOT_COLUMNS = {
     Root.COLUMN_ROOT_ID,

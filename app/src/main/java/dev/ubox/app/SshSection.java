@@ -93,8 +93,8 @@ final class SshSection {
     list.addView(logRow);
 
     TextView note = text(
-        "手机开着代理 VPN 时，局域网可能连不上：VPN 会把 UbuntuBox 的回包也送进隧道。"
-            + "可在 VPN 应用里把 UbuntuBox 加入绕过列表，或开启「绕过局域网」。",
+        "手机开着代理 VPN 时，局域网可能连不上：VPN 会把口袋环境的回包也送进隧道。"
+            + "可在 VPN 应用里把口袋环境加入绕过列表，或开启「绕过局域网」。",
         12, Theme.TEXT_DIM);
     note.setPadding(0, dp(4), 0, 0);
     list.addView(note);
