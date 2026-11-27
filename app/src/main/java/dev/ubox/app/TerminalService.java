@@ -7,7 +7,9 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.net.wifi.WifiManager;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
 import com.termux.terminal.TerminalSession;
@@ -32,6 +34,8 @@ public class TerminalService extends Service {
   private final IBinder binder = new LocalBinder();
   private final List<TerminalSession> sessions = new ArrayList<>();
   private PowerManager.WakeLock wakeLock;
+  private PowerManager.WakeLock sshWakeLock;
+  private WifiManager.WifiLock sshWifiLock;
   private Runnable onExit;
 
   @Override
@@ -145,6 +149,8 @@ public class TerminalService extends Service {
       builder.environment().put(entry.substring(0, split), entry.substring(split + 1));
     }
     sshProcess = builder.start();
+    acquireSshLocks();
+    watchSsh(sshProcess);
     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(PREF_SSH, true).apply();
     updateNotification();
   }
@@ -156,15 +162,72 @@ public class TerminalService extends Service {
   }
 
   private void stopSshProcess() {
-    if (sshProcess == null) return;
+    if (sshProcess == null) {
+      releaseSshLocks();
+      return;
+    }
     // proot 带 --kill-on-exit，结束它会连同 sshd 及其子进程一起结束
-    sshProcess.destroy();
+    Process process = sshProcess;
+    // 先置空，watcher 发现引用不一致就不会重复清理
+    sshProcess = null;
+    process.destroy();
     try {
-      if (!sshProcess.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) sshProcess.destroyForcibly();
+      if (!process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) process.destroyForcibly();
     } catch (InterruptedException interrupted) {
       Thread.currentThread().interrupt();
     }
-    sshProcess = null;
+    releaseSshLocks();
+  }
+
+  /**
+   * SSH 运行期间保持 CPU 与 Wi-Fi 唤醒：锁屏后设备会休眠 CPU，sshd 虽然活着却无法响应连接。
+   * 与菜单里手动开启的「保持 CPU 唤醒」相互独立。
+   */
+  @SuppressWarnings("deprecation")
+  private void acquireSshLocks() {
+    PowerManager power = getSystemService(PowerManager.class);
+    if (sshWakeLock == null) {
+      sshWakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ubox:sshd");
+      sshWakeLock.setReferenceCounted(false);
+    }
+    if (!sshWakeLock.isHeld()) sshWakeLock.acquire();
+    WifiManager wifi = getSystemService(WifiManager.class);
+    if (wifi == null) return; // 极少数无 Wi-Fi 的设备（如电视盒子）
+    if (sshWifiLock == null) {
+      sshWifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "ubox:sshd");
+      sshWifiLock.setReferenceCounted(false);
+    }
+    if (!sshWifiLock.isHeld()) sshWifiLock.acquire();
+  }
+
+  private void releaseSshLocks() {
+    if (sshWakeLock != null && sshWakeLock.isHeld()) sshWakeLock.release();
+    if (sshWifiLock != null && sshWifiLock.isHeld()) sshWifiLock.release();
+  }
+
+  /** sshd 自行退出（配置错误、崩溃）时释放锁并刷新通知。 */
+  private void watchSsh(Process process) {
+    Thread watcher =
+        new Thread(
+            () -> {
+              try {
+                process.waitFor();
+              } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+              }
+              new Handler(getMainLooper())
+                  .post(
+                      () -> {
+                        if (sshProcess != process) return;
+                        sshProcess = null;
+                        releaseSshLocks();
+                        updateNotification();
+                      });
+            },
+            "ubox-sshd-watch");
+    watcher.setDaemon(true);
+    watcher.start();
   }
 
   void setOnExit(Runnable onExit) {
