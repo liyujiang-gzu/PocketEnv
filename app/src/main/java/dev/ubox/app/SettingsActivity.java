@@ -442,7 +442,7 @@ public class SettingsActivity extends Activity {
     list.addView(header("关于我们"));
 
     LinearLayout introRow = row("项目介绍", null);
-    subtitle(introRow).setText("口袋环境 · 在 Android 上运行完整 Ubuntu 环境，点此访问 Gitee 开源地址");
+    subtitle(introRow).setText("口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) ，免 root、免 Termux，内置TypeScript/Python/Go/Java/C等语言编译环境和OpenCode/Codex/CodeBuddy/QwenCode等编程智能体，Ubuntu与Android文件系统互通。");
     introRow.setOnClickListener(v -> openUrl(GITEE_URL));
     list.addView(introRow);
 
