@@ -2,7 +2,7 @@
 
 口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04，免 root、免 Termux，内置 TypeScript/Python/Java/Go/C 等语言编译环境和 OpenCode/Codex/CodeBuddy/QwenCode 等编程智能体。
 
-基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT）二次开发，运行时部分剥离自 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（MIT），只保留了 [proot](https://github.com/proot-me/proot)（GPL-2.0） 运行时、启动参数和 [Termux 终端](https://github.com/termux/termux-app/tree/master/terminal-view)（Apache-2.0），DSH 相关的插件、备份、补丁体系以及设备自动化功能都去掉了。
+基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT）二次开发，增加了大量的易用特性，运行时部分剥离自 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（MIT），只保留了 [termux/proot](https://github.com/termux/proot)（GPL-2.0）运行时、启动参数和命令行终端 [termux/terminal-view](https://github.com/termux/termux-app/tree/master/terminal-view)（Apache 2.0），DSH 相关的插件、备份、补丁体系以及设备自动化功能都去掉了。
 
 ## 功能特性
 
@@ -28,7 +28,7 @@
 **构建要求：**
 - JDK 17
 - Android SDK 36
-- NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`，。注意法律合规，若修改了需按 Apache 2.0 协议进行说明）
+- NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`，。注意法律合规，若修改了需按上游的 Apache 2.0 协议进行说明）
 
 ## 使用方法
 
@@ -67,10 +67,10 @@
 
 > 合规注意事项：本项目用了 GPL 协议的 proot 动态链接库，没有进程隔离。由于 GPL 协议的传染性，即使你只用二进制库、一行代码都没抄，只要对外分发，主程序就有被认定为“衍生作品”而非“聚合体”的风险，完整开源项目代码才可以规避法律风险。
 
-- **本项目二开代码**：采用国内的 MulanPSL v2 许可（见 `LICENSE`）
-- **ubuntu-box 基线代码**：沿用 DSHA 的 MIT 许可（见 `assets/licenses/DSHA-LICENSE.txt`）
-- **libproot.so / libprootloader*.so**：Termux proot，GPL-2.0（`assets/licenses/proot-COPYING.txt`）。对外分发 APK 时需要按 GPL 提供[对应源码](https://github.com/proot-me/proot)
-- **libtalloc.so**：LGPL
-- **libandroidshmem.so**：来源同 DSHA，原仓库标注许可未核实
-- **Termux terminal-view / terminal-emulator 及 native/termux-jni/termux.c**：Apache-2.0
-- **Ubuntu Base**：各软件包各自的许可
+- **本项目自有代码**：采用国内通行的 MulanPSL v2 许可（见 `LICENSE`），法律条款以中文为准。
+- **ubuntu-box 基线代码**：原仓库声明沿用 DSHA 的 MIT 许可（见 `assets/licenses/DSHA-LICENSE.txt`）。
+- **libproot.so / libprootloader.so / libprootloader32.so**：Termux 分支的 [proot](https://github.com/proot-me/proot)，GPL-2.0（见 `assets/licenses/proot-COPYING.txt`），对外分发 APK 时需要按 GPL 提供[对应源码](https://github.com/termux/proot)。
+- **libtalloc.so**：来源同 DSHA，原仓库标注“LGPL family; exact binary revision unverified”。
+- **libandroidshmem.so**：来源同 DSHA，原仓库标注“unknown origin/license for this original binary”。
+- **Termux terminal-view 及 libtermux.so（native/termux-jni/termux.c）**：来源同 DSHA，Apache 2.0（见 `assets/licenses/Termux-terminal-Apache-2.0.txt`），直接用的官方原版 v0.118.0，未做任何修改。
+- **随包的其他第三方组件**：分别遵循其许可，不因 APK 顶层许可变成 MulanPSL v2 许可。
