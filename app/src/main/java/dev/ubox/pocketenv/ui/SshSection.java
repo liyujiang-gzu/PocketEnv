@@ -1,4 +1,10 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.ui;
+
+import dev.ubox.pocketenv.SettingsActivity;
+import dev.ubox.pocketenv.runtime.Rootfs;
+import dev.ubox.pocketenv.runtime.TerminalService;
+import dev.ubox.pocketenv.runtime.UbuntuProcess;
+import dev.ubox.pocketenv.util.Async;
 
 import android.app.AlertDialog;
 import android.content.ClipData;
@@ -27,7 +33,7 @@ import java.util.List;
  * <p>SSH 状态数据（是否安装、公钥数、是否有密码）由 SettingsActivity 检测后
  * 通过 {@link #updateStatus} 推入；服务绑定对象通过 {@link #bind} 注入。
  */
-final class SshSection {
+public final class SshSection {
   private final SettingsActivity host;
 
   private Button sshButton;
@@ -37,18 +43,18 @@ final class SshSection {
   private int keyCount;
   private boolean hasPassword;
 
-  SshSection(SettingsActivity host) {
+  public SshSection(SettingsActivity host) {
     this.host = host;
   }
 
   /** 注入 TerminalService 绑定（连接/断开时调用）。 */
-  void bind(TerminalService service) {
+  public void bind(TerminalService service) {
     this.service = service;
     updateUi();
   }
 
   /** 设置页状态检测完成后推入 SSH 相关状态。 */
-  void updateStatus(boolean installed, int keyCount, boolean hasPassword) {
+  public void updateStatus(boolean installed, int keyCount, boolean hasPassword) {
     this.installed = installed;
     this.keyCount = keyCount;
     this.hasPassword = hasPassword;
@@ -56,7 +62,7 @@ final class SshSection {
   }
 
   /** 向 list 追加本分区的全部视图。 */
-  void build(LinearLayout list) {
+  public void build(LinearLayout list) {
     list.addView(header("局域网访问"));
 
     sshButton = actionButton();

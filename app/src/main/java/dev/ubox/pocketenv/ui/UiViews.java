@@ -1,4 +1,6 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.ui;
+
+import dev.ubox.pocketenv.R;
 
 import android.content.Context;
 import android.graphics.Typeface;
@@ -9,10 +11,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /** 设置页与许可页共用的行/文本构造，避免视觉规范在两处漂移。 */
-final class UiViews {
+public final class UiViews {
   private UiViews() {}
 
-  static LinearLayout row(Context context, String title, View action) {
+  public static LinearLayout row(Context context, String title, View action) {
     LinearLayout row = new LinearLayout(context);
     row.setOrientation(LinearLayout.HORIZONTAL);
     row.setGravity(Gravity.CENTER_VERTICAL);
@@ -33,7 +35,7 @@ final class UiViews {
     return row;
   }
 
-  static TextView subtitle(LinearLayout row) {
+  public static TextView subtitle(LinearLayout row) {
     LinearLayout texts = (LinearLayout) row.getChildAt(0);
     for (int i = 0; i < texts.getChildCount(); i++) {
       View child = texts.getChildAt(i);
@@ -42,7 +44,7 @@ final class UiViews {
     throw new IllegalStateException("row 缺少 subtitle 视图");
   }
 
-  static TextView text(Context context, String value, int sp, int color) {
+  public static TextView text(Context context, String value, int sp, int color) {
     TextView view = new TextView(context);
     view.setText(value);
     view.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
@@ -51,7 +53,7 @@ final class UiViews {
     return view;
   }
 
-  static int dp(Context context, int value) {
+  public static int dp(Context context, int value) {
     return (int) (value * context.getResources().getDisplayMetrics().density);
   }
 }

@@ -1,5 +1,15 @@
 package dev.ubox.pocketenv;
 
+import dev.ubox.pocketenv.model.MirrorOption;
+import dev.ubox.pocketenv.model.Toolbox;
+import dev.ubox.pocketenv.runtime.TerminalService;
+import dev.ubox.pocketenv.runtime.UbuntuProcess;
+import dev.ubox.pocketenv.ui.EdgeToEdge;
+import dev.ubox.pocketenv.ui.SshSection;
+import dev.ubox.pocketenv.ui.Theme;
+import dev.ubox.pocketenv.ui.UiViews;
+import dev.ubox.pocketenv.util.Async;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -204,7 +214,7 @@ public class SettingsActivity extends Activity {
 
   // ---------------------------------------------------------------- 状态
 
-  void refreshStatus() {
+  public void refreshStatus() {
     String statusScript = Toolbox.statusScript();
     Async.run(this, "settings-status",
         () -> UbuntuProcess.runScript(this, statusScript, UbuntuProcess.timeoutMs(30)),
@@ -336,7 +346,7 @@ public class SettingsActivity extends Activity {
   }
 
   /** 交给 MainActivity 在新会话中执行，便于看到实时输出。 */
-  void runInTerminal(String name, String command) {
+  public void runInTerminal(String name, String command) {
     setResult(RESULT_OK, new Intent().putExtra(EXTRA_NAME, name).putExtra(EXTRA_COMMAND, command));
     finish();
   }
@@ -429,7 +439,7 @@ public class SettingsActivity extends Activity {
   }
 
   /** 锁屏后 Doze 会挂起网络，提示把应用加入电池优化白名单，否则仅靠唤醒锁仍可能断连。 */
-  boolean maybeWarnBatteryOptimization() {
+  public boolean maybeWarnBatteryOptimization() {
     if (isFinishing() || ignoringBatteryOptimizations()) return false;
     new AlertDialog.Builder(this)
         .setTitle("锁屏后保持 SSH 连接")

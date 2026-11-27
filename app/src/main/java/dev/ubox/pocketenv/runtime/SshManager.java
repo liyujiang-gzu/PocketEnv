@@ -1,4 +1,4 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.runtime;
 
 import android.content.Context;
 import android.net.wifi.WifiManager;
@@ -16,7 +16,7 @@ import java.util.List;
  * <p>从 TerminalService 拆出，让 Service 只负责前台通知与会话生命周期。
  * 状态变更通过 {@link Listener} 通知宿主刷新前台通知。
  */
-final class SshManager {
+public final class SshManager {
   static final String PREFS = "ubox";
   static final String PREF_SSH = "ssh_enabled";
   static final int SSH_PORT = 8022;

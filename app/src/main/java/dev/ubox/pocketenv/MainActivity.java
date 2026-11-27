@@ -1,5 +1,11 @@
 package dev.ubox.pocketenv;
 
+import dev.ubox.pocketenv.runtime.Rootfs;
+import dev.ubox.pocketenv.runtime.TerminalService;
+import dev.ubox.pocketenv.ui.EdgeToEdge;
+import dev.ubox.pocketenv.ui.Theme;
+import dev.ubox.pocketenv.util.Async;
+
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;

@@ -1,4 +1,4 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.model;
 
 /**
  * 设置页「软件安装」目录：全部工具的声明与安装/卸载/检测命令生成。
@@ -6,14 +6,14 @@ package dev.ubox.pocketenv;
  * <p>纯数据 + 纯函数，无 Android 依赖，可单元测试。新增一个可安装工具
  * 只需在 {@link #SECTIONS} 里加一行工厂调用。
  */
-final class Toolbox {
+public final class Toolbox {
   private Toolbox() {}
 
-  enum Kind { APT, NODE, NPM, UV, GO, CURL, GRADLE, ANDROID_SDK }
+  public enum Kind { APT, NODE, NPM, UV, GO, CURL, GRADLE, ANDROID_SDK }
 
   /** packages：apt/npm 包名；check：NODE/NPM 用来判断是否已安装的命令名。 */
-  record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
-    String installCommand() {
+  public record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
+    public String installCommand() {
       switch (kind) {
         case APT: return "ubox-install apt " + String.join(" ", packages);
         case NPM:
@@ -36,7 +36,7 @@ final class Toolbox {
       }
     }
 
-    String removeCommand() {
+    public String removeCommand() {
       switch (kind) {
         case APT: return "ubox-install apt-remove " + String.join(" ", packages);
         case NPM: return "ubox-install npm-remove " + String.join(" ", packages);
@@ -64,7 +64,7 @@ final class Toolbox {
       }
     }
 
-    String statusCheck() {
+    public String statusCheck() {
       if (kind == Kind.APT)
         return "n=$(dpkg-query -W -f='${db:Status-Status}\\n' " + String.join(" ", packages)
             + " 2>/dev/null | grep -c '^installed$'); [ \"$n\" = " + packages.length
@@ -102,7 +102,7 @@ final class Toolbox {
     }
   }
 
-  record Section(String title, Tool... tools) {}
+  public record Section(String title, Tool... tools) {}
 
   private static Tool apt(String id, String title, String summary, String... packages) {
     return new Tool(id, title, summary, Kind.APT, packages, null);
@@ -129,7 +129,7 @@ final class Toolbox {
     return new Tool(id, title, summary, Kind.CURL, new String[] {url}, bin);
   }
 
-  static final Section[] SECTIONS = {
+  public static final Section[] SECTIONS = {
     new Section(
         "常用工具",
         apt("net", "网络工具", "curl、wget、dig、ifconfig 和 HTTPS 根证书（ping 已内置）",
@@ -170,13 +170,13 @@ final class Toolbox {
   };
 
   /** 状态检测脚本里 SSH 相关的固定行。 */
-  static final String SSH_STATUS_CHECKS =
+  public static final String SSH_STATUS_CHECKS =
       "[ -x /usr/sbin/sshd ] && echo sshd=1 || echo sshd=0\n"
       + "echo sshkeys=$(grep -cE '^(ssh-|ecdsa-|sk-)' /root/.ssh/authorized_keys 2>/dev/null || echo 0)\n"
       + "awk -F: '$1==\"root\"{print \"sshpw=\" (($2 ~ /^[!*]/ || $2 == \"\") ? 0 : 1)}' /etc/shadow\n";
 
   /** 组装整段状态检测脚本：软件源当前值 + 全部工具 + SSH 状态。 */
-  static String statusScript() {
+  public static String statusScript() {
     StringBuilder script = new StringBuilder();
     script.append("grep -m1 '^URIs:' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null"
         + " | sed 's/^URIs: */mirror=/'\n");
@@ -195,7 +195,7 @@ final class Toolbox {
   }
 
   /** 按行解析状态脚本输出（仅 key=value 行），工具 id → 是否已安装。 */
-  static java.util.Map<String, Boolean> parseInstalled(String output) {
+  public static java.util.Map<String, Boolean> parseInstalled(String output) {
     java.util.Map<String, Boolean> result = new java.util.HashMap<>();
     for (String line : output.split("\n")) {
       int split = line.indexOf('=');

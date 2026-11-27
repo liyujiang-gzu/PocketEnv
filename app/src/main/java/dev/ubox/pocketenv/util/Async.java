@@ -1,11 +1,11 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.util;
 
 import android.app.Activity;
 import android.util.Log;
 import android.widget.Toast;
 
 /** 「后台线程执行 → 主线程回调」的统一模板，替代散落各处的裸 new Thread。 */
-final class Async {
+public final class Async {
   private static final String TAG = "PocketEnv";
 
   private Async() {}
@@ -18,7 +18,7 @@ final class Async {
    * @param onDone    UI 线程回调，成功时执行
    * @param onError   UI 线程回调，失败时执行；null 时默认 Toast「操作失败」
    */
-  static <T> void run(Activity activity, String threadName, Task<T> task, Callback<T> onDone,
+  public static <T> void run(Activity activity, String threadName, Task<T> task, Callback<T> onDone,
       Callback<Exception> onError) {
     new Thread(
         () -> {
@@ -40,7 +40,7 @@ final class Async {
   }
 
   /** 无返回值的便捷重载。 */
-  static void run(Activity activity, String threadName, BlockingTask task, Runnable onDone,
+  public static void run(Activity activity, String threadName, BlockingTask task, Runnable onDone,
       Callback<Exception> onError) {
     run(activity, threadName,
         () -> {
@@ -52,17 +52,17 @@ final class Async {
   }
 
   @FunctionalInterface
-  interface Task<T> {
+  public interface Task<T> {
     T run() throws Exception;
   }
 
   @FunctionalInterface
-  interface BlockingTask {
+  public interface BlockingTask {
     void run() throws Exception;
   }
 
   @FunctionalInterface
-  interface Callback<T> {
+  public interface Callback<T> {
     void run(T value);
   }
 }

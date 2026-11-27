@@ -1,4 +1,7 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.model;
+
+import dev.ubox.pocketenv.runtime.UbuntuProcess;
+import dev.ubox.pocketenv.util.Async;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -10,17 +13,17 @@ import android.widget.Toast;
  * <p>四套源的「描述 / 选择弹窗 / 应用」行为完全同构，收敛到这里后，
  * 新增一类源只需声明一个 {@code MirrorOption[]} 数组，不再复制三个方法。
  */
-final class MirrorOption {
-  final String id;
-  final String label;
+public final class MirrorOption {
+  public final String id;
+  public final String label;
   /** 展示用的第二行文字（域名或 URL）。 */
-  final String detail;
+  public final String detail;
   /** 切换脚本参数（ubox-mirror 等）。 */
-  final String value;
+  public final String value;
   /** 切换脚本名：mirror / npm-registry / pypi-mirror / goproxy。 */
-  final String script;
+  public final String script;
 
-  MirrorOption(String id, String label, String detail, String value, String script) {
+  public MirrorOption(String id, String label, String detail, String value, String script) {
     this.id = id;
     this.label = label;
     this.detail = detail;
@@ -29,7 +32,7 @@ final class MirrorOption {
   }
 
   /** 弹窗条目：名称 + 域名两行。 */
-  String dialogLabel() {
+  public String dialogLabel() {
     return label + "\n" + detail;
   }
 
@@ -42,7 +45,7 @@ final class MirrorOption {
    * @param onApplying 选中后、切换开始前的回调（调用方把对应行设为「切换中…」）
    * @param onChanged 切换结束后（无论成败）的刷新回调
    */
-  static void choose(Activity activity, String title, MirrorOption[] options, String suffix,
+  public static void choose(Activity activity, String title, MirrorOption[] options, String suffix,
       Runnable onApplying, Runnable onChanged) {
     String[] labels = new String[options.length];
     for (int i = 0; i < options.length; i++) labels[i] = options[i].dialogLabel();
@@ -71,7 +74,7 @@ final class MirrorOption {
   }
 
   /** 按包含关系匹配选项（域名型源，如 APT），未匹配时返回原值。 */
-  static String describe(MirrorOption[] options, String value) {
+  public static String describe(MirrorOption[] options, String value) {
     if (value.isEmpty()) return "未知";
     for (MirrorOption option : options)
       if (value.contains(option.value)) return option.label + " · " + option.detail;
@@ -79,7 +82,7 @@ final class MirrorOption {
   }
 
   /** 按前缀匹配（URL 型源），未配置时返回 fallback 文案。 */
-  static String describeByPrefix(MirrorOption[] options, String value, String emptyText) {
+  public static String describeByPrefix(MirrorOption[] options, String value, String emptyText) {
     if (value.isEmpty()) return emptyText;
     for (MirrorOption option : options)
       if (value.startsWith(option.value)) return option.label + " · " + option.detail;

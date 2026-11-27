@@ -1,4 +1,4 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.runtime;
 
 import android.content.Context;
 import android.system.ErrnoException;
@@ -16,7 +16,7 @@ import java.util.List;
  * 组装进入 rootfs 的 proot 命令行。参数与 DSHA 的 ContainerRuntime.Proot 一致：
  * Termux 版 proot 放在 jniLibs 里随 APK 解压到 nativeLibraryDir（Android 10+ 只允许从那里 exec）。
  */
-final class Proot {
+public final class Proot {
   static final String GUEST_PATH =
       "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 

@@ -42,7 +42,7 @@
             android:parentActivityName=".SettingsActivity" />
 
         <service
-            android:name=".TerminalService"
+            android:name=".runtime.TerminalService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
@@ -52,7 +52,7 @@
 
         <!-- 把 rootfs 作为只读存储提供给文件管理器（SAF） -->
         <provider
-            android:name=".RootfsProvider"
+            android:name=".provider.RootfsProvider"
             android:authorities="dev.ubox.pocketenv.rootfs"
             android:exported="true"
             android:grantUriPermissions="true"

@@ -1,4 +1,7 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.provider;
+
+import dev.ubox.pocketenv.R;
+import dev.ubox.pocketenv.runtime.Rootfs;
 
 import android.provider.DocumentsProvider;
 import android.database.Cursor;

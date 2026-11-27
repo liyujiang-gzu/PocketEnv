@@ -1,4 +1,4 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.runtime;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
@@ -22,29 +22,29 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 /** Ubuntu rootfs 的目录布局、首次解压和每次启动前的修正。 */
-final class Rootfs {
-  static final String ASSET = "rootfs.tar.gz.bin";
+public final class Rootfs {
+  public static final String ASSET = "rootfs.tar.gz.bin";
   private static final String MARKER = ".ubox-installed";
 
-  final File base, rootfs, lib, tmp;
+  public final File base, rootfs, lib, tmp;
 
-  Rootfs(Context context) {
+  public Rootfs(Context context) {
     base = new File(context.getFilesDir(), "ubox");
     rootfs = new File(base, "rootfs");
     lib = new File(base, "lib");
     tmp = new File(base, "tmp");
   }
 
-  boolean isInstalled() {
+  public boolean isInstalled() {
     return new File(rootfs, MARKER).isFile() && new File(rootfs, "bin/bash").exists();
   }
 
-  interface Progress {
-    void update(String stage, long done, long total);
+  public interface Progress {
+    public void update(String stage, long done, long total);
   }
 
   /** 解压到临时目录，全部完成后再替换，中途失败不会留下半套环境。 */
-  void install(Context context, Progress progress) throws IOException {
+  public void install(Context context, Progress progress) throws IOException {
     File staging = new File(base, "rootfs.staging");
     deleteRecursively(staging);
     if (!staging.mkdirs()) throw new IOException("无法创建 " + staging);
@@ -156,7 +156,7 @@ final class Rootfs {
   }
 
   /** 每次启动会话前执行：刷新随 APK 更新的脚本和兼容文件。 */
-  void refreshGuestFiles(Context context) throws IOException {
+  public void refreshGuestFiles(Context context) throws IOException {
     mkdirs(lib);
     mkdirs(tmp);
     File local = new File(rootfs, "usr/local/bin");
@@ -179,7 +179,7 @@ final class Rootfs {
     writeFakeProc();
   }
 
-  File fakeProc(String name) {
+  public File fakeProc(String name) {
     return new File(base, "proc/" + name);
   }
 
@@ -197,7 +197,7 @@ final class Rootfs {
     write(fakeProc("vmstat"), "nr_free_pages 1743136\nnr_zone_inactive_anon 179281\n");
   }
 
-  void delete() throws IOException {
+  public void delete() throws IOException {
     deleteRecursively(new File(base, "rootfs.staging"));
     deleteRecursively(rootfs);
   }
@@ -205,7 +205,7 @@ final class Rootfs {
   // ---------------------------------------------------------------- 工具方法
 
   /** 去掉 ./ 前缀，拒绝绝对路径和 ..，防止解压到 rootfs 外面。 */
-  static String normalize(String name) {
+  public static String normalize(String name) {
     while (name.startsWith("./")) name = name.substring(2);
     while (name.startsWith("/")) name = name.substring(1);
     if (name.endsWith("/")) name = name.substring(0, name.length() - 1);
@@ -214,7 +214,7 @@ final class Rootfs {
     return name;
   }
 
-  static void deleteRecursively(File file) throws IOException {
+  public static void deleteRecursively(File file) throws IOException {
     if (!file.exists() && !isSymlink(file)) return;
     if (file.isDirectory() && !isSymlink(file)) {
       file.setWritable(true);

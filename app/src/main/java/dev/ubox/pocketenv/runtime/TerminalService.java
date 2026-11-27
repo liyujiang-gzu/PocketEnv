@@ -1,4 +1,7 @@
-package dev.ubox.pocketenv;
+package dev.ubox.pocketenv.runtime;
+
+import dev.ubox.pocketenv.MainActivity;
+import dev.ubox.pocketenv.R;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -19,12 +22,12 @@ import java.util.List;
 
 /** 持有所有终端会话；前台服务保证切到后台后 Agent 仍在运行。SSH 进程管理委托给 SshManager。 */
 public class TerminalService extends Service {
-  static final String ACTION_EXIT = "dev.ubox.pocketenv.EXIT";
+  public static final String ACTION_EXIT = "dev.ubox.pocketenv.EXIT";
   private static final String CHANNEL = "sessions";
   private static final int NOTIFICATION_ID = 1;
 
-  final class LocalBinder extends Binder {
-    TerminalService service() {
+  public final class LocalBinder extends Binder {
+    public TerminalService service() {
       return TerminalService.this;
     }
   }
@@ -70,16 +73,16 @@ public class TerminalService extends Service {
     super.onDestroy();
   }
 
-  List<TerminalSession> sessions() {
+  public List<TerminalSession> sessions() {
     return sessions;
   }
 
-  TerminalSession createSession(TerminalSessionClient client) throws IOException {
+  public TerminalSession createSession(TerminalSessionClient client) throws IOException {
     return createSession(client, null, null);
   }
 
   /** guestCommand 为 null 时启动登录 shell，否则执行这条命令（用于设置页的安装任务）。 */
-  TerminalSession createSession(TerminalSessionClient client, String name, String guestCommand)
+  public TerminalSession createSession(TerminalSessionClient client, String name, String guestCommand)
       throws IOException {
     Rootfs rootfs = new Rootfs(this);
     rootfs.refreshGuestFiles(this);
@@ -97,44 +100,44 @@ public class TerminalService extends Service {
     return session;
   }
 
-  void removeSession(TerminalSession session) {
+  public void removeSession(TerminalSession session) {
     session.finishIfRunning();
     sessions.remove(session);
     updateNotification();
   }
 
   /** Activity 不在前台时，会话回调交给这个空实现。 */
-  void detachClient(TerminalSessionClient fallback) {
+  public void detachClient(TerminalSessionClient fallback) {
     for (TerminalSession session : sessions) session.updateTerminalSessionClient(fallback);
   }
 
   // ---------------------------------------------------------------- SSH（委托 SshManager）
 
-  static final int SSH_PORT = SshManager.SSH_PORT;
+  public static final int SSH_PORT = SshManager.SSH_PORT;
 
-  File sshLog() {
+  public File sshLog() {
     return sshManager.logFile();
   }
 
-  boolean isSshRunning() {
+  public boolean isSshRunning() {
     return sshManager != null && sshManager.isRunning();
   }
 
   /** 在后台（不占终端会话）运行 sshd，输出写到 sshd.log。 */
-  synchronized void startSsh() throws IOException {
+  public synchronized void startSsh() throws IOException {
     sshManager.start();
   }
 
   /** 停止 sshd；返回 8022 是否已释放，false 表示端口仍被其他程序占用。 */
-  synchronized boolean stopSsh() {
+  public synchronized boolean stopSsh() {
     return sshManager.stop();
   }
 
-  void setOnExit(Runnable onExit) {
+  public void setOnExit(Runnable onExit) {
     this.onExit = onExit;
   }
 
-  void exit() {
+  public void exit() {
     if (sshManager != null) sshManager.stopQuietly();
     for (TerminalSession session : new ArrayList<>(sessions)) session.finishIfRunning();
     sessions.clear();
@@ -144,11 +147,11 @@ public class TerminalService extends Service {
     if (onExit != null) onExit.run();
   }
 
-  boolean isWakeLockHeld() {
+  public boolean isWakeLockHeld() {
     return wakeLock != null && wakeLock.isHeld();
   }
 
-  void setWakeLock(boolean hold) {
+  public void setWakeLock(boolean hold) {
     if (hold && !isWakeLockHeld()) {
       wakeLock =
           getSystemService(PowerManager.class)

@@ -1,5 +1,7 @@
 package dev.ubox.pocketenv;
 
+import dev.ubox.pocketenv.runtime.Rootfs;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
