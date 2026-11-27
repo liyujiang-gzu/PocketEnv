@@ -10,10 +10,10 @@
 - 无需 root 权限，无需安装 Termux
 - 支持 Ubuntu 系统访问安卓文件系统
 - 支持安卓文件管理器直接访问 Ubuntu 文件系统
-- 内置 SSH 服务，方便局域网远程访问
+- 内置 SSH 服务，方便局域网远程访问，锁屏/熄屏不中断
 - 支持切换中国大陆友好的软件源（APT、NPM、PyPI 等）
-- 预置 Git、Node.js 22、Python 3、OpenJDK 17、Maven 3、Gradle 9、Android SDK 36、Go、C/C++ 等开发环境
-- 预置 OpenCode、Claude Code、Codex、CodeBuddy、QwenCode 等编程智能体
+- 内置 Git、Node.js 22、Python 3、OpenJDK 17、Maven 3、Gradle 9、Android SDK 36、Go、C/C++ 等开发环境支持
+- 内置 OpenCode、Claude Code、Codex、CodeBuddy、QwenCode 等编程智能体支持
 
 ## 构建
 
@@ -28,7 +28,7 @@
 **构建要求：**
 - JDK 17
 - Android SDK 36
-- NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`，。注意法律合规，若修改了需按上游的 Apache 2.0 协议进行说明）
+- NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`。注意合规性，若修改了需按上游的 Apache 2.0 协议进行说明）
 
 ## 使用方法
 
