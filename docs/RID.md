@@ -1,7 +1,7 @@
-# 仓储指令文档（RID）
+# 仓储指令文档（Repository Instructions Document）
 
 > 本文件是 PocketEnv 的仓储指令，集中记录技术栈、构建、测试、打包等命令与约定。
-> 未覆盖事项以架构规范 `docs/ADD.md` 为准；流程与协作约定见 `AGENTS.md`。
+> 未覆盖事项以概要设计 `docs/HLD.md` 为准；流程与协作约定见 `AGENTS.md`。
 
 ---
 
@@ -21,14 +21,14 @@
 | 语言 | Java | 17（`source/targetCompatibility`） |
 | 构建 | Gradle | 9.3.1（wrapper） |
 | Android 构建 | AGP | 9.1.0 |
-| 编译/目标 SDK | compileSdk / targetSdk | 36 |
+| 编译/目标 SDK | compileSdk / targetSdk | 36（Android 16） |
 | 最低支持 | minSdk | 26（Android 8.0） |
 | ABI | abiFilters | 仅 `arm64-v8a` |
 | 运行时容器 | proot（Termux 分支） | GPL-2.0，随 `jniLibs` 分发 |
 | 终端 UI | termux-app `terminal-view` | 0.118.0 |
-| 压缩 | commons-compress | 1.27.1 |
-| 测试 | JUnit | 4.13.2 |
-| 目标 Ubuntu | Ubuntu Base | 24.04.5 arm64 |
+| 解/压缩 | commons-compress | 1.27.1 |
+| 单元测试 | JUnit | 4.13.2 |
+| 目标 rootfs | Ubuntu Base | 24.04.5 arm64 |
 
 > 仓库镜像：`settings.gradle` 用 Aliyun 镜像 + `repositoriesMode=FAIL_ON_PROJECT_REPOS`（禁止 init/插件偷偷加仓库，勿关）。Gradle wrapper 走腾讯镜像。
 
@@ -53,7 +53,7 @@
 # 2) 构建 Debug APK（日常开发）
 ./gradlew assembleDebug
 
-# 3) 构建 Release APK（需 keystore.properties 提供签名）
+# 3) 构建 Release APK（需 keystore.properties 提供签名，已 gitignore）
 ./gradlew assembleRelease
 
 # 4) 清理
@@ -86,7 +86,7 @@ app/build/reports/tests/testDebugUnitTest/index.html
 # 产物：app/build/outputs/apk/release/app-release.apk
 ```
 
-**务必验证产物**（`BUILD SUCCESSFUL ≠ 产物正确`，见 `docs/pitfalls.md` 第一节）：
+**务必验证产物**（`BUILD SUCCESSFUL ≠ 产物正确`，见 `docs/pitfalls.md`）：
 
 ```bash
 # 检查 APK 是否含 manifest / 资源
@@ -102,7 +102,7 @@ apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
 ## 七、签名
 
 - 签名信息放本地 `keystore.properties`（已 gitignore），`app/build.gradle` 读取后配置 release signingConfig。无该文件时 release 不产出有效签名包。
-- 签名 scheme：v2 + v3 启用；v1（minSdk 26 用不到）、v4 关闭。
+- 签名 scheme：v2 + v3 启用；v1（minSdk 26 用不到）、v4（不 ADB 调试或 Google Play 分发）关闭。
 
 ---
 
