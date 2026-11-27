@@ -81,6 +81,8 @@ public class SettingsActivity extends Activity {
   private static final String FEEDBACK_URL = "https://gitee.com/li_yu_jiang/PocketEnv/issues";
   /** 作者联系邮箱，联系作者跳转用。 */
   private static final String AUTHOR_EMAIL = "1032694760@qq.com";
+  /** 版本更新地址，跳转 GitHub Releases。 */
+  private static final String RELEASES_URL = "https://github.com/liyujiang-gzu/PocketEnv/releases/";
 
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
@@ -471,8 +473,9 @@ public class SettingsActivity extends Activity {
     contactRow.setOnClickListener(v -> openUrl("mailto:" + AUTHOR_EMAIL));
     list.addView(contactRow);
 
-    LinearLayout versionRow = row("版本", null);
+    LinearLayout versionRow = row("版本更新", null);
     subtitle(versionRow).setText(appVersion());
+    versionRow.setOnClickListener(v -> openUrl(RELEASES_URL));
     list.addView(versionRow);
   }
 
