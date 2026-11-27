@@ -2,7 +2,7 @@
 
 口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04，免 root、免 Termux，内置 TypeScript/Python/Java/Go/C 等语言编译环境和 OpenCode/Codex/CodeBuddy/QwenCode 等编程智能体。
 
-基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT）二次开发，增加了大量的易用特性，运行时部分剥离自 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（MIT），只保留了 [termux/proot](https://github.com/termux/proot)（GPL-2.0）运行时、启动参数和命令行终端 [termux/terminal-view](https://github.com/termux/termux-app/tree/master/terminal-view)（Apache 2.0），DSH 相关的插件、备份、补丁体系以及设备自动化功能都去掉了。
+本项目基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT 许可）重构开发，增加了大量的易用特性。从 1.0.0 版本开始就已完成**自举**，通过自带的 Git + OpenCode 2 + OpenJDK 17 + Gradle 9 + Android SDK 36 完成自身的代码编辑、编译构建、打包安装、真机运行流水线。
 
 ## 功能特性
 
@@ -65,9 +65,9 @@
 
 ## 许可协议
 
-> 合规注意事项：本项目用了 GPL 协议的 proot 动态链接库，没有进程隔离。由于 GPL 协议的传染性，即使你只用二进制库、一行代码都没抄，只要对外分发，主程序就有被认定为“衍生作品”而非“聚合体”的风险，完整开源项目代码才可以规避法律风险。
+> 合规注意事项：本项目用了 GPL 协议的 proot 动态链接库，主程序没有使用进程隔离手段，可能有被认定为“衍生作品”而非“聚合体”的风险。由于 GPL 协议的传染性，即使你只用其二进制库、一行代码都没抄，只要对外分发，就得提供完整的源代码才没有法律风险。
 
-- **本项目自有代码**：采用国内通行的 MulanPSL v2 许可（见 `LICENSE`），法律条款以中文为准。
+- **本项目自有代码**：采用国内通行的 MulanPSL v2 许可（见 `LICENSE`），木兰宽松许可证的法律条款以中文为准。
 - **ubuntu-box 基线代码**：原仓库声明沿用 DSHA 的 MIT 许可（见 `assets/licenses/DSHA-LICENSE.txt`）。
 - **libproot.so / libprootloader.so / libprootloader32.so**：Termux 分支的 [proot](https://github.com/proot-me/proot)，GPL-2.0（见 `assets/licenses/proot-COPYING.txt`），对外分发 APK 时需要按 GPL 提供[对应源码](https://github.com/termux/proot)。
 - **libtalloc.so**：来源同 DSHA，原仓库标注“LGPL family; exact binary revision unverified”。
