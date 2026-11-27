@@ -13,7 +13,7 @@ BASE_PACKAGES="$BASE_DIR/base-packages.txt"
 ADDED_PACKAGES="$BASE_DIR/added-packages.txt"
 
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
+trap 'rm -rf "$tmp"' EXIT INT TERM HUP
 
 echo "==> 检查基线清单"
 for f in "$BASE_FILES" "$BASE_PACKAGES"; do
@@ -47,6 +47,7 @@ echo "==> 新增软件包：$(wc -l < "$ADDED_PACKAGES") 个"
 /root/.gradle/caches
 /root/.npm/_cacache
 /root/.cache
+/.l2s
 EOF
 } > "$tmp/excludes"
 
@@ -60,7 +61,8 @@ fi
 echo "==> 扫描新增或修改的内容"
 find / -xdev \
   \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp \
-     -o -path /sdcard -o -path /data -o -path /system -o -path /apex -o -path /storage \) \
+     -o -path /sdcard -o -path /data -o -path /system -o -path /apex -o -path /storage \
+     -o -path /.l2s \) \
   -prune -o \( -type f -o -type l -o \( -type d -empty \) \) \
   -printf '%y\t%s\t%T@\t%p\n' 2>/dev/null \
   | awk -F'\t' -v excludes="$tmp/excludes" -v manifest="$BASE_MANIFEST" '
