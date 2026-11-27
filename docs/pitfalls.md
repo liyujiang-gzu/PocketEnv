@@ -1,4 +1,4 @@
-# UbuntuBox 构建踩坑记录
+# 口袋环境构建踩坑记录
 
 > 在 aarch64（ARM64）离线工具链上构建本项目时遇到的坑，逐条记录现象、根因与解法，供后续排查参考。
 > 环境：aarch64 Linux + Pocket Dev Env 离线工具链（`/opt/android-portable`）、AGP 9.1.0、Gradle 9.3.1、compileSdk 36。

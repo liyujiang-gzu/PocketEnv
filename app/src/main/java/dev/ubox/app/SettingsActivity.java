@@ -74,7 +74,7 @@ public class SettingsActivity extends Activity {
   };
 
   /** 项目 Gitee 开源地址，「关于我们」跳转用。 */
-  private static final String GITEE_URL = "https://gitee.com/li_yu_jiang/ubuntu-box";
+  private static final String GITEE_URL = "https://gitee.com/li_yu_jiang/PocketEnv";
 
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
@@ -427,7 +427,7 @@ public class SettingsActivity extends Activity {
         .setTitle("锁屏后保持 SSH 连接")
         .setMessage(
             "Android 会在锁屏后休眠 CPU 并限制后台网络，SSH 可能因此断开。"
-                + "建议把 UbuntuBox 加入电池优化白名单。")
+                + "建议把口袋环境加入电池优化白名单。")
         .setNegativeButton("稍后", null)
         .setPositiveButton("去设置", (dialog, which) -> requestIgnoreBatteryOptimizations())
         .show();
@@ -440,7 +440,7 @@ public class SettingsActivity extends Activity {
     list.addView(header("关于我们"));
 
     LinearLayout introRow = row("项目介绍", null);
-    subtitle(introRow).setText("UbuntuBox · 在 Android 上运行完整 Ubuntu 环境，点此访问 Gitee 开源地址");
+    subtitle(introRow).setText("口袋环境 · 在 Android 上运行完整 Ubuntu 环境，点此访问 Gitee 开源地址");
     introRow.setOnClickListener(v -> openUrl(GITEE_URL));
     list.addView(introRow);
 

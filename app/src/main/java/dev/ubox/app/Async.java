@@ -6,7 +6,7 @@ import android.widget.Toast;
 
 /** 「后台线程执行 → 主线程回调」的统一模板，替代散落各处的裸 new Thread。 */
 final class Async {
-  private static final String TAG = "UbuntuBox";
+  private static final String TAG = "PocketEnv";
 
   private Async() {}
 

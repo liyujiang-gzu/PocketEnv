@@ -14,7 +14,7 @@ touch /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/authorized_keys
 ssh-keygen -A >/dev/null
 cat > /etc/ssh/sshd_config.d/ubox.conf <<CONF
-# 由 UbuntuBox 生成，每次启动 SSH 时覆盖
+# 由口袋环境生成，每次启动 SSH 时覆盖
 Port $PORT
 PermitRootLogin yes
 PubkeyAuthentication yes

@@ -38,7 +38,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class MainActivity extends Activity {
-  private static final String TAG = "UbuntuBox";
+  private static final String TAG = "PocketEnv";
   private static final int REQUEST_SETTINGS = 2;
 
   private TerminalView terminalView;

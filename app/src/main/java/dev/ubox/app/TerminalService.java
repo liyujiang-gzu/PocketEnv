@@ -189,7 +189,7 @@ public class TerminalService extends Service {
             + (isWakeLockHeld() ? " · 保持唤醒" : "");
     return new Notification.Builder(this, CHANNEL)
         .setSmallIcon(R.drawable.ic_notification)
-        .setContentTitle("UbuntuBox")
+        .setContentTitle("口袋环境")
         .setContentText(text)
         .setContentIntent(open)
         .setOngoing(true)

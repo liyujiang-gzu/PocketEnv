@@ -1,4 +1,4 @@
-# UbuntuBox 环境设置（每次启动应用时会被覆盖）
+# 口袋环境设置（每次启动应用时会被覆盖）
 umask 022
 export LANG=C.UTF-8
 export COLORTERM=truecolor
