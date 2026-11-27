@@ -1,6 +1,6 @@
-# 仓储指令文档（Repository Instructions Document）
+# 代码仓库指令文档（Repository Instructions Document）
 
-> 本文件是 PocketEnv 的仓储指令，集中记录技术栈、构建、测试、打包等命令与约定。
+> 本文件是 PocketEnv 的代码仓库指令，集中记录技术栈、构建、测试、打包等命令与约定。
 > 未覆盖事项以概要设计 `docs/HLD.md` 为准；流程与协作约定见 `AGENTS.md`。
 
 ---
