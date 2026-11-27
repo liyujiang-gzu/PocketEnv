@@ -2,7 +2,6 @@ package dev.ubox.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -42,13 +41,13 @@ public class LicensesActivity extends Activity {
     scroll.addView(list);
 
     Toolbar toolbar = new Toolbar(this);
-    toolbar.setBackgroundColor(0xFF1E1E1E);
-    toolbar.setTitleTextColor(Color.WHITE);
+    toolbar.setBackgroundColor(Theme.SURFACE);
+    toolbar.setTitleTextColor(Theme.TEXT);
     toolbar.setMinimumHeight(UiViews.dp(this, 48));
 
     LinearLayout root = new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
-    root.setBackgroundColor(0xFF121212);
+    root.setBackgroundColor(Theme.BACKGROUND);
     root.addView(
         toolbar,
         new LinearLayout.LayoutParams(

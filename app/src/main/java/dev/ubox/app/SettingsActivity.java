@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
@@ -193,33 +192,45 @@ public class SettingsActivity extends Activity {
             "qwen")),
   };
 
-  private static final String[][] MIRRORS = {
-    {"official", "官方（默认）", "ports.ubuntu.com"},
-    {"tuna", "清华（推荐）", "mirrors.tuna.tsinghua.edu.cn"},
-    {"ustc", "中科大", "mirrors.ustc.edu.cn"},
-    {"aliyun", "阿里云", "mirrors.aliyun.com"},
+  /** APT 源：切换走 ubox-mirror。 */
+  private static final MirrorOption[] MIRRORS = {
+    new MirrorOption("official", "官方（默认）", "ports.ubuntu.com", "ports.ubuntu.com", "mirror"),
+    new MirrorOption("tuna", "清华（推荐）", "mirrors.tuna.tsinghua.edu.cn",
+        "mirrors.tuna.tsinghua.edu.cn", "mirror"),
+    new MirrorOption("ustc", "中科大", "mirrors.ustc.edu.cn", "mirrors.ustc.edu.cn", "mirror"),
+    new MirrorOption("aliyun", "阿里云", "mirrors.aliyun.com", "mirrors.aliyun.com", "mirror"),
   };
 
-  /** npm 源（registry）：id、名称、URL。切换走 ubox-npm-registry。 */
-  private static final String[][] NPM_REGISTRIES = {
-    {"official", "官方（默认）", "https://registry.npmjs.org"},
-    {"aliyun", "阿里云（推荐）", "https://registry.npmmirror.com"},
-    {"tencent", "腾讯云", "https://mirrors.cloud.tencent.com/npm"},
-    {"huawei", "华为云", "https://repo.huaweicloud.com/repository/npm"},
+  /** npm 源（registry）：切换走 ubox-npm-registry。 */
+  private static final MirrorOption[] NPM_REGISTRIES = {
+    new MirrorOption("official", "官方（默认）", "https://registry.npmjs.org",
+        "https://registry.npmjs.org", "npm-registry"),
+    new MirrorOption("aliyun", "阿里云（推荐）", "https://registry.npmmirror.com",
+        "https://registry.npmmirror.com", "npm-registry"),
+    new MirrorOption("tencent", "腾讯云", "https://mirrors.cloud.tencent.com/npm",
+        "https://mirrors.cloud.tencent.com/npm", "npm-registry"),
+    new MirrorOption("huawei", "华为云", "https://repo.huaweicloud.com/repository/npm",
+        "https://repo.huaweicloud.com/repository/npm", "npm-registry"),
   };
 
-  /** PyPI 源：id、名称、URL。切换走 ubox-pypi-mirror（同时配 pip 和 uv）。 */
-  private static final String[][] PYPI_MIRRORS = {
-    {"official", "官方（默认）", "https://pypi.org/simple"},
-    {"tuna", "清华（推荐）", "https://pypi.tuna.tsinghua.edu.cn/simple"},
-    {"aliyun", "阿里云", "https://mirrors.aliyun.com/pypi/simple"},
-    {"tencent", "腾讯云", "https://mirrors.cloud.tencent.com/pypi/simple"},
+  /** PyPI 源：切换走 ubox-pypi-mirror（同时配 pip 和 uv）。 */
+  private static final MirrorOption[] PYPI_MIRRORS = {
+    new MirrorOption("official", "官方（默认）", "https://pypi.org/simple",
+        "https://pypi.org/simple", "pypi-mirror"),
+    new MirrorOption("tuna", "清华（推荐）", "https://pypi.tuna.tsinghua.edu.cn/simple",
+        "https://pypi.tuna.tsinghua.edu.cn/simple", "pypi-mirror"),
+    new MirrorOption("aliyun", "阿里云", "https://mirrors.aliyun.com/pypi/simple",
+        "https://mirrors.aliyun.com/pypi/simple", "pypi-mirror"),
+    new MirrorOption("tencent", "腾讯云", "https://mirrors.cloud.tencent.com/pypi/simple",
+        "https://mirrors.cloud.tencent.com/pypi/simple", "pypi-mirror"),
   };
 
-  /** GO 源（Go 模块代理 GOPROXY）：id、名称、URL。切换走 ubox-goproxy。 */
-  private static final String[][] GO_PROXIES = {
-    {"official", "官方（默认）", "https://proxy.golang.org"},
-    {"goproxy", "七牛云（推荐）", "https://goproxy.cn"},
+  /** GO 源（Go 模块代理 GOPROXY）：切换走 ubox-goproxy。 */
+  private static final MirrorOption[] GO_PROXIES = {
+    new MirrorOption("official", "官方（默认）", "https://proxy.golang.org",
+        "https://proxy.golang.org", "goproxy"),
+    new MirrorOption("goproxy", "七牛云（推荐）", "https://goproxy.cn",
+        "https://goproxy.cn", "goproxy"),
   };
 
   /** 项目 Gitee 开源地址，「关于我们」跳转用。 */
@@ -248,18 +259,16 @@ public class SettingsActivity extends Activity {
           service = null;
         }
       };
-  private Proot proot;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    proot = new Proot(this, new Rootfs(this));
 
     LinearLayout list = new LinearLayout(this);
     list.setOrientation(LinearLayout.VERTICAL);
     list.setPadding(dp(16), dp(8), dp(16), dp(24));
 
-    statusLine = text("正在检查安装状态…", 13, 0xFF9E9E9E);
+    statusLine = text("正在检查安装状态…", 13, Theme.TEXT_DIM);
     statusLine.setPadding(0, dp(8), 0, dp(4));
     list.addView(statusLine);
 
@@ -304,8 +313,8 @@ public class SettingsActivity extends Activity {
     buildSshSection(list);
 
     Toolbar toolbar = new Toolbar(this);
-    toolbar.setBackgroundColor(0xFF1E1E1E);
-    toolbar.setTitleTextColor(Color.WHITE);
+    toolbar.setBackgroundColor(Theme.SURFACE);
+    toolbar.setTitleTextColor(Theme.TEXT);
     toolbar.setMinimumHeight(dp(48));
 
     ScrollView scroll = new ScrollView(this);
@@ -313,7 +322,7 @@ public class SettingsActivity extends Activity {
 
     LinearLayout root = new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
-    root.setBackgroundColor(0xFF121212);
+    root.setBackgroundColor(Theme.BACKGROUND);
     root.addView(toolbar, new LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
     root.addView(scroll, new LinearLayout.LayoutParams(
@@ -364,69 +373,57 @@ public class SettingsActivity extends Activity {
     script.append("[ -x /usr/sbin/sshd ] && echo sshd=1 || echo sshd=0\n");
     script.append("echo sshkeys=$(grep -cE '^(ssh-|ecdsa-|sk-)' /root/.ssh/authorized_keys 2>/dev/null || echo 0)\n");
     script.append("awk -F: '$1==\"root\"{print \"sshpw=\" (($2 ~ /^[!*]/ || $2 == \"\") ? 0 : 1)}' /etc/shadow\n");
-    new Thread(
-            () -> {
-              String output;
-              try {
-                output = proot.run(script.toString(), 30_000);
-              } catch (Exception error) {
-                Log.e(TAG, "status check failed", error);
-                runOnUiThread(() -> statusLine.setText("检查安装状态失败：" + error.getMessage()));
-                return;
-              }
-              Map<String, Boolean> result = new HashMap<>();
-              String mirror = "";
-              String npmRegistry = "";
-              String pypiMirror = "";
-              String goProxy = "";
-              int keys = 0;
-              for (String line : output.split("\n")) {
-                // npm 源行是空格分隔（URL 含 = ），单独处理
-                if (line.startsWith("npmreg ")) {
-                  npmRegistry = line.substring("npmreg ".length()).trim();
-                  continue;
-                }
-                // PyPI 源行同样空格分隔
-                if (line.startsWith("pypi ")) {
-                  pypiMirror = line.substring("pypi ".length()).trim();
-                  continue;
-                }
-                // GO 源行同样空格分隔
-                if (line.startsWith("goproxy ")) {
-                  goProxy = line.substring("goproxy ".length()).trim();
-                  continue;
-                }
-                int split = line.indexOf('=');
-                if (split <= 0) continue;
-                String key = line.substring(0, split), value = line.substring(split + 1).trim();
-                if (key.equals("mirror")) mirror = value;
-                else if (key.equals("sshkeys")) keys = parseInt(value);
-                else result.put(key, value.equals("1"));
-              }
-              int keyCount = keys;
-              String mirrorText = describeMirror(mirror);
-              String npmRegistryText = describeNpmRegistry(npmRegistry);
-              String pypiMirrorText = describePypiMirror(pypiMirror);
-              String goProxyText = describeGoProxy(goProxy);
-              runOnUiThread(
-                  () -> {
-                    installed.clear();
-                    installed.putAll(result);
-                    mirrorValue.setText(mirrorText);
-                    npmRegistryValue.setText(npmRegistryText);
-                    pypiMirrorValue.setText(pypiMirrorText);
-                    goProxyValue.setText(goProxyText);
-                    sshInstalled = Boolean.TRUE.equals(result.get("sshd"));
-                    sshHasPassword = Boolean.TRUE.equals(result.get("sshpw"));
-                    sshKeyCount = keyCount;
-                    updateSshUi();
-                    for (Map.Entry<String, Button> entry : buttons.entrySet())
-                      styleButton(entry.getValue(), Boolean.TRUE.equals(installed.get(entry.getKey())));
-                    statusLine.setText("安装会在新的终端会话中进行，完成后返回这里即可看到状态");
-                  });
-            },
-            "settings-status")
-        .start();
+    String statusScript = script.toString();
+    Async.run(this, "settings-status",
+        () -> UbuntuProcess.runScript(this, statusScript, UbuntuProcess.timeoutMs(30)),
+        output -> applyStatus(output),
+        error -> statusLine.setText("检查安装状态失败：" + error.getMessage()));
+  }
+
+  /** 解析状态脚本输出并刷新 UI。 */
+  private void applyStatus(String output) {
+    Map<String, Boolean> result = new HashMap<>();
+    String mirror = "";
+    String npmRegistry = "";
+    String pypiMirror = "";
+    String goProxy = "";
+    int keys = 0;
+    for (String line : output.split("\n")) {
+      // npm 源行是空格分隔（URL 含 = ），单独处理
+      if (line.startsWith("npmreg ")) {
+        npmRegistry = line.substring("npmreg ".length()).trim();
+        continue;
+      }
+      // PyPI 源行同样空格分隔
+      if (line.startsWith("pypi ")) {
+        pypiMirror = line.substring("pypi ".length()).trim();
+        continue;
+      }
+      // GO 源行同样空格分隔
+      if (line.startsWith("goproxy ")) {
+        goProxy = line.substring("goproxy ".length()).trim();
+        continue;
+      }
+      int split = line.indexOf('=');
+      if (split <= 0) continue;
+      String key = line.substring(0, split), value = line.substring(split + 1).trim();
+      if (key.equals("mirror")) mirror = value;
+      else if (key.equals("sshkeys")) keys = parseInt(value);
+      else result.put(key, value.equals("1"));
+    }
+    installed.clear();
+    installed.putAll(result);
+    mirrorValue.setText(describeMirror(mirror));
+    npmRegistryValue.setText(describeNpmRegistry(npmRegistry));
+    pypiMirrorValue.setText(describePypiMirror(pypiMirror));
+    goProxyValue.setText(describeGoProxy(goProxy));
+    sshInstalled = Boolean.TRUE.equals(result.get("sshd"));
+    sshHasPassword = Boolean.TRUE.equals(result.get("sshpw"));
+    sshKeyCount = keys;
+    updateSshUi();
+    for (Map.Entry<String, Button> entry : buttons.entrySet())
+      styleButton(entry.getValue(), Boolean.TRUE.equals(installed.get(entry.getKey())));
+    statusLine.setText("安装会在新的终端会话中进行，完成后返回这里即可看到状态");
   }
 
   private static int parseInt(String value) {
@@ -438,166 +435,40 @@ public class SettingsActivity extends Activity {
   }
 
   private static String describeMirror(String uri) {
-    for (String[] mirror : MIRRORS) if (uri.contains(mirror[2])) return mirror[1] + " · " + mirror[2];
-    return uri.isEmpty() ? "未知" : uri;
+    return MirrorOption.describe(MIRRORS, uri);
   }
 
   // ---------------------------------------------------------------- 操作
 
   private void chooseMirror() {
-    String[] labels = new String[MIRRORS.length];
-    for (int i = 0; i < MIRRORS.length; i++) labels[i] = MIRRORS[i][1] + "\n" + MIRRORS[i][2];
-    new AlertDialog.Builder(this)
-        .setTitle("选择 APT 源")
-        .setItems(labels, (dialog, which) -> applyMirror(MIRRORS[which][0], MIRRORS[which][1]))
-        .show();
-  }
-
-  private void applyMirror(String id, String label) {
-    mirrorValue.setText("切换中…");
-    new Thread(
-            () -> {
-              String message;
-              try {
-                proot.run("ubox-mirror " + id, 15_000);
-                message = "已切换到" + label + "，下次安装时会自动 apt update";
-              } catch (Exception error) {
-                message = "切换失败：" + error.getMessage();
-              }
-              String toast = message;
-              runOnUiThread(
-                  () -> {
-                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
-                    refreshStatus();
-                  });
-            },
-            "settings-mirror")
-        .start();
+    MirrorOption.choose(this, "选择 APT 源", MIRRORS, "，下次安装时会自动 apt update",
+        this::refreshStatus);
   }
 
   private static String describeNpmRegistry(String url) {
-    if (url.isEmpty()) return "未安装 Node.js";
-    for (String[] registry : NPM_REGISTRIES)
-      if (url.startsWith(registry[2])) return registry[1] + " · " + registry[2];
-    return url;
+    return MirrorOption.describeByPrefix(NPM_REGISTRIES, url, "未安装 Node.js");
   }
 
   private void chooseNpmRegistry() {
-    String[] labels = new String[NPM_REGISTRIES.length];
-    for (int i = 0; i < NPM_REGISTRIES.length; i++)
-      labels[i] = NPM_REGISTRIES[i][1] + "\n" + NPM_REGISTRIES[i][2];
-    new AlertDialog.Builder(this)
-        .setTitle("选择 NPM 源")
-        .setItems(
-            labels,
-            (dialog, which) ->
-                applyNpmRegistry(NPM_REGISTRIES[which][0], NPM_REGISTRIES[which][1]))
-        .show();
-  }
-
-  private void applyNpmRegistry(String id, String label) {
-    npmRegistryValue.setText("切换中…");
-    new Thread(
-            () -> {
-              String message;
-              try {
-                proot.run("ubox-npm-registry " + id, 15_000);
-                message = "已切换到" + label;
-              } catch (Exception error) {
-                message = "切换失败：" + error.getMessage();
-              }
-              String toast = message;
-              runOnUiThread(
-                  () -> {
-                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
-                    refreshStatus();
-                  });
-            },
-            "settings-npm-registry")
-        .start();
+    MirrorOption.choose(this, "选择 NPM 源", NPM_REGISTRIES, "", this::refreshStatus);
   }
 
   private static String describePypiMirror(String url) {
-    if (url.isEmpty()) return "pip 默认（未配置）";
-    for (String[] mirror : PYPI_MIRRORS)
-      if (url.startsWith(mirror[2])) return mirror[1] + " · " + mirror[2];
-    return url;
+    return MirrorOption.describeByPrefix(PYPI_MIRRORS, url, "pip 默认（未配置）");
   }
 
   private void choosePypiMirror() {
-    String[] labels = new String[PYPI_MIRRORS.length];
-    for (int i = 0; i < PYPI_MIRRORS.length; i++)
-      labels[i] = PYPI_MIRRORS[i][1] + "\n" + PYPI_MIRRORS[i][2];
-    new AlertDialog.Builder(this)
-        .setTitle("选择 PyPI 源（pip + uv）")
-        .setItems(
-            labels,
-            (dialog, which) ->
-                applyPypiMirror(PYPI_MIRRORS[which][0], PYPI_MIRRORS[which][1]))
-        .show();
-  }
-
-  private void applyPypiMirror(String id, String label) {
-    pypiMirrorValue.setText("切换中…");
-    new Thread(
-            () -> {
-              String message;
-              try {
-                proot.run("ubox-pypi-mirror " + id, 15_000);
-                message = "已切换到" + label + "（pip + uv）";
-              } catch (Exception error) {
-                message = "切换失败：" + error.getMessage();
-              }
-              String toast = message;
-              runOnUiThread(
-                  () -> {
-                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
-                    refreshStatus();
-                  });
-            },
-            "settings-pypi-mirror")
-        .start();
+    MirrorOption.choose(this, "选择 PyPI 源（pip + uv）", PYPI_MIRRORS, "（pip + uv）",
+        this::refreshStatus);
   }
 
   private static String describeGoProxy(String url) {
-    if (url.isEmpty()) return "官方默认（未配置）";
-    for (String[] proxy : GO_PROXIES)
-      if (url.startsWith(proxy[2])) return proxy[1] + " · " + proxy[2];
-    return url;
+    return MirrorOption.describeByPrefix(GO_PROXIES, url, "官方默认（未配置）");
   }
 
   private void chooseGoProxy() {
-    String[] labels = new String[GO_PROXIES.length];
-    for (int i = 0; i < GO_PROXIES.length; i++)
-      labels[i] = GO_PROXIES[i][1] + "\n" + GO_PROXIES[i][2];
-    new AlertDialog.Builder(this)
-        .setTitle("选择 GO 源（Go 模块代理）")
-        .setItems(
-            labels,
-            (dialog, which) -> applyGoProxy(GO_PROXIES[which][0], GO_PROXIES[which][1]))
-        .show();
-  }
-
-  private void applyGoProxy(String id, String label) {
-    goProxyValue.setText("切换中…");
-    new Thread(
-            () -> {
-              String message;
-              try {
-                proot.run("ubox-goproxy " + id, 15_000);
-                message = "已切换到" + label + "（GOPROXY）";
-              } catch (Exception error) {
-                message = "切换失败：" + error.getMessage();
-              }
-              String toast = message;
-              runOnUiThread(
-                  () -> {
-                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
-                    refreshStatus();
-                  });
-            },
-            "settings-go-proxy")
-        .start();
+    MirrorOption.choose(this, "选择 GO 源（Go 模块代理）", GO_PROXIES, "（GOPROXY）",
+        this::refreshStatus);
   }
 
   private void onToolClicked(Tool tool) {
@@ -647,7 +518,7 @@ public class SettingsActivity extends Activity {
 
     Button copy = actionButton();
     copy.setText("复制");
-    copy.setTextColor(0xFFE95420);
+    copy.setTextColor(Theme.ACCENT);
     copy.setOnClickListener(v -> copySshCommand());
     LinearLayout commandRow = row("连接命令", copy);
     sshCommand = subtitle(commandRow);
@@ -674,7 +545,7 @@ public class SettingsActivity extends Activity {
     TextView note = text(
         "手机开着代理 VPN 时，局域网可能连不上：VPN 会把 UbuntuBox 的回包也送进隧道。"
             + "可在 VPN 应用里把 UbuntuBox 加入绕过列表，或开启「绕过局域网」。",
-        12, 0xFF9E9E9E);
+        12, Theme.TEXT_DIM);
     note.setPadding(0, dp(4), 0, 0);
     list.addView(note);
     updateSshUi();
@@ -717,7 +588,7 @@ public class SettingsActivity extends Activity {
 
   private static void styleGrantButton(Button button, boolean granted) {
     button.setText(granted ? "已开启 ✓" : "开启");
-    button.setTextColor(granted ? 0xFF81C784 : 0xFFE95420);
+    button.setTextColor(granted ? Theme.OK : Theme.ACCENT);
   }
 
   private boolean ignoringBatteryOptimizations() {
@@ -809,15 +680,15 @@ public class SettingsActivity extends Activity {
     if (!sshInstalled) {
       sshState.setText("未安装 openssh-server");
       sshButton.setText("安装");
-      sshButton.setTextColor(0xFFE95420);
+      sshButton.setTextColor(Theme.ACCENT);
     } else if (running) {
       sshState.setText("运行中");
       sshButton.setText("停止");
-      sshButton.setTextColor(0xFFE57373);
+      sshButton.setTextColor(Theme.DANGER);
     } else {
       sshState.setText("已停止");
       sshButton.setText("启动");
-      sshButton.setTextColor(0xFFE95420);
+      sshButton.setTextColor(Theme.ACCENT);
     }
     List<String> addresses = lanAddresses();
     StringBuilder commands = new StringBuilder();
@@ -868,65 +739,54 @@ public class SettingsActivity extends Activity {
     sshButton.setEnabled(false);
     if (bound.isSshRunning()) {
       sshState.setText("停止中…");
-      new Thread(
-              () -> {
-                boolean freed = bound.stopSsh();
-                runOnUiThread(
-                    () -> {
-                      sshButton.setEnabled(true);
-                      updateSshUi();
-                      if (!freed)
-                        Toast.makeText(
-                                this,
-                                "端口 " + TerminalService.SSH_PORT + " 仍被其他程序占用",
-                                Toast.LENGTH_LONG)
-                            .show();
-                    });
-              },
-              "settings-ssh-stop")
-          .start();
+      Async.run(this, "settings-ssh-stop",
+          () -> {
+            boolean freed = bound.stopSsh();
+            return freed;
+          },
+          freed -> {
+            sshButton.setEnabled(true);
+            updateSshUi();
+            if (!freed)
+              Toast.makeText(this,
+                  "端口 " + TerminalService.SSH_PORT + " 仍被其他程序占用", Toast.LENGTH_LONG)
+                  .show();
+          },
+          error -> {
+            sshButton.setEnabled(true);
+            updateSshUi();
+          });
       return;
     }
     sshState.setText("启动中…");
-    new Thread(
-            () -> {
-              String failure = null;
-              try {
-                bound.startSsh();
-              } catch (java.io.IOException error) {
-                failure = error.getMessage();
-              }
-              String message = failure;
-              runOnUiThread(
-                  () -> {
-                    sshButton.setEnabled(true);
-                    if (message != null) {
-                      updateSshUi();
-                      Toast.makeText(this, "启动失败：" + message, Toast.LENGTH_LONG).show();
-                      return;
-                    }
-                    // sshd 启动需要一两秒，之后检查它是否还活着
-                    sshState.setText("启动中…");
-                    sshState.postDelayed(
-                        () -> {
-                          updateSshUi();
-                          if (service != null && !service.isSshRunning()) {
-                            showSshLog();
-                          } else {
-                            boolean warned = maybeWarnBatteryOptimization();
-                            if (!warned && sshKeyCount == 0 && !sshHasPassword)
-                              Toast.makeText(
-                                      this,
-                                      "SSH 已启动，请先添加公钥或设置密码",
-                                      Toast.LENGTH_LONG)
-                                  .show();
-                          }
-                        },
-                        2500);
-                  });
-            },
-            "settings-ssh-start")
-        .start();
+    Async.run(this, "settings-ssh-start",
+        () -> {
+          bound.startSsh();
+          return null;
+        },
+        ignored -> {
+          sshButton.setEnabled(true);
+          // sshd 启动需要一两秒，之后检查它是否还活着
+          sshState.setText("启动中…");
+          sshState.postDelayed(
+              () -> {
+                updateSshUi();
+                if (service != null && !service.isSshRunning()) {
+                  showSshLog();
+                } else {
+                  boolean warned = maybeWarnBatteryOptimization();
+                  if (!warned && sshKeyCount == 0 && !sshHasPassword)
+                    Toast.makeText(this, "SSH 已启动，请先添加公钥或设置密码", Toast.LENGTH_LONG)
+                        .show();
+                }
+              },
+              2500);
+        },
+        error -> {
+          sshButton.setEnabled(true);
+          updateSshUi();
+          Toast.makeText(this, "启动失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
+        });
   }
 
   /** 锁屏后 Doze 会挂起网络，提示把应用加入电池优化白名单，否则仅靠唤醒锁仍可能断连。 */
@@ -1027,24 +887,20 @@ public class SettingsActivity extends Activity {
     String encoded = android.util.Base64.encodeToString(
         ("root:" + password).getBytes(java.nio.charset.StandardCharsets.UTF_8),
         android.util.Base64.NO_WRAP);
-    new Thread(
-            () -> {
-              String message;
-              try {
-                String output = proot.run(
-                    "printf %s " + encoded + " | base64 -d | chpasswd && echo ok", 20_000);
-                message = output.trim().endsWith("ok") ? "密码已设置" : "设置失败：" + output.trim();
-              } catch (Exception error) {
-                message = "设置失败：" + error.getMessage();
-              }
-              String toast = message;
-              runOnUiThread(() -> {
-                Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
-                refreshStatus();
-              });
-            },
-            "settings-password")
-        .start();
+    Async.run(this, "settings-password",
+        () -> UbuntuProcess.runScript(this,
+            "printf %s " + encoded + " | base64 -d | chpasswd && echo ok",
+            UbuntuProcess.timeoutMs(20)),
+        output -> {
+          Toast.makeText(this,
+              output.trim().endsWith("ok") ? "密码已设置" : "设置失败：" + output.trim(),
+              Toast.LENGTH_LONG).show();
+          refreshStatus();
+        },
+        error -> {
+          Toast.makeText(this, "设置失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
+          refreshStatus();
+        });
   }
 
   private void showSshLog() {
@@ -1061,7 +917,7 @@ public class SettingsActivity extends Activity {
         log = "";
       }
     }
-    TextView view = text(log.isEmpty() ? "（暂无日志）" : log, 11, Color.WHITE);
+    TextView view = text(log.isEmpty() ? "（暂无日志）" : log, 11, Theme.TEXT);
     view.setTypeface(Typeface.MONOSPACE);
     view.setTextIsSelectable(true);
     view.setPadding(dp(16), dp(8), dp(16), dp(8));
@@ -1077,7 +933,7 @@ public class SettingsActivity extends Activity {
   // ---------------------------------------------------------------- 视图
 
   private TextView header(String title) {
-    TextView view = text(title, 13, 0xFFE95420);
+    TextView view = text(title, 13, Theme.ACCENT);
     view.setTypeface(Typeface.DEFAULT_BOLD);
     view.setPadding(0, dp(24), 0, dp(4));
     return view;
@@ -1091,13 +947,13 @@ public class SettingsActivity extends Activity {
     Button button = new Button(this, null, 0, android.R.style.Widget_DeviceDefault_Button_Borderless);
     button.setAllCaps(false);
     button.setText("…");
-    button.setTextColor(0xFF9E9E9E);
+    button.setTextColor(Theme.TEXT_DIM);
     return button;
   }
 
   private static void styleButton(Button button, boolean isInstalled) {
     button.setText(isInstalled ? "已安装 ✓" : "安装");
-    button.setTextColor(isInstalled ? 0xFF81C784 : 0xFFE95420);
+    button.setTextColor(isInstalled ? Theme.OK : Theme.ACCENT);
   }
 
   private TextView text(String value, int sp, int color) {

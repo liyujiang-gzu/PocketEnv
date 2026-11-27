@@ -140,21 +140,8 @@ public class TerminalService extends Service {
       stopSshProcess();
       if (isPortListening()) throw new IOException("端口 " + SSH_PORT + " 被其他程序占用");
     }
-    Rootfs rootfs = new Rootfs(this);
-    rootfs.refreshGuestFiles(this);
-    Proot proot = new Proot(this, rootfs);
-    proot.prepare();
-    ProcessBuilder builder =
-        new ProcessBuilder(proot.argv("/usr/local/bin/ubox-sshd", String.valueOf(SSH_PORT)))
-            .redirectErrorStream(true)
-            .redirectOutput(ProcessBuilder.Redirect.to(sshLog()))
-            .redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")));
-    builder.environment().clear();
-    for (String entry : proot.environment()) {
-      int split = entry.indexOf('=');
-      builder.environment().put(entry.substring(0, split), entry.substring(split + 1));
-    }
-    sshProcess = builder.start();
+    sshProcess = UbuntuProcess.startDetached(
+        this, new String[] {"/usr/local/bin/ubox-sshd", String.valueOf(SSH_PORT)}, sshLog());
     acquireSshLocks();
     watchSsh(sshProcess);
     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(PREF_SSH, true).apply();

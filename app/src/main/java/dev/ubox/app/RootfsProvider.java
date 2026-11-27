@@ -12,7 +12,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URLConnection;
-import java.nio.file.Files;
 import java.util.Arrays;
 
 /**
@@ -297,11 +296,11 @@ public final class RootfsProvider extends DocumentsProvider {
   }
 
   private static void deleteTree(File file) throws FileNotFoundException {
-    if (!Files.isSymbolicLink(file.toPath()) && file.isDirectory()) {
-      File[] children = file.listFiles();
-      if (children != null) for (File child : children) deleteTree(child);
+    try {
+      Rootfs.deleteRecursively(file);
+    } catch (IOException error) {
+      throw new FileNotFoundException("无法删除：" + file.getName());
     }
-    if (!file.delete()) throw new FileNotFoundException("无法删除：" + file.getName());
   }
 
   private static String sanitizeName(String name) {

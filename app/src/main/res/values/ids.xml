@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- UiViews.row 的副标题视图标记，替代按位置索引取子视图 -->
+    <item name="tag_subtitle" type="id" />
+</resources>

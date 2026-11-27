@@ -1,7 +1,6 @@
 package dev.ubox.app;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -24,15 +23,23 @@ final class UiViews {
 
     LinearLayout texts = new LinearLayout(context);
     texts.setOrientation(LinearLayout.VERTICAL);
-    texts.addView(text(context, title, 16, Color.WHITE));
-    texts.addView(text(context, "", 13, 0xFF9E9E9E));
+    texts.addView(text(context, title, 16, Theme.TEXT));
+    TextView subtitle = text(context, "", 13, Theme.TEXT_DIM);
+    // 打 tag 供 subtitle() 查找，避免依赖子视图位置（结构变化时静默错位）
+    subtitle.setTag(R.id.tag_subtitle, Boolean.TRUE);
+    texts.addView(subtitle);
     row.addView(texts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
     if (action != null) row.addView(action);
     return row;
   }
 
   static TextView subtitle(LinearLayout row) {
-    return (TextView) ((LinearLayout) row.getChildAt(0)).getChildAt(1);
+    LinearLayout texts = (LinearLayout) row.getChildAt(0);
+    for (int i = 0; i < texts.getChildCount(); i++) {
+      View child = texts.getChildAt(i);
+      if (child.getTag(R.id.tag_subtitle) != null) return (TextView) child;
+    }
+    throw new IllegalStateException("row 缺少 subtitle 视图");
   }
 
   static TextView text(Context context, String value, int sp, int color) {

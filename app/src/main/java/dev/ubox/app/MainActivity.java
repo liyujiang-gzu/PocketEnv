@@ -10,7 +10,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
@@ -121,30 +120,24 @@ public class MainActivity extends Activity {
       return;
     }
     showInstall("准备解压 Ubuntu…");
-    new Thread(
-            () -> {
-              try {
-                rootfs.install(
-                    this,
-                    (stage, done, total) ->
-                        runOnUiThread(
-                            () -> {
-                              installStatus.setText(stage);
-                              installProgress.setProgress(
-                                  total > 0 ? (int) (done * 1000 / total) : 0);
-                            }));
-                runOnUiThread(this::startTerminal);
-              } catch (IOException | RuntimeException error) {
-                Log.e(TAG, "install failed", error);
-                runOnUiThread(
-                    () -> {
-                      installStatus.setText("安装失败：" + error.getMessage());
-                      installRetry.setVisibility(View.VISIBLE);
-                    });
-              }
-            },
-            "rootfs-install")
-        .start();
+    Async.run(this, "rootfs-install",
+        () -> {
+          rootfs.install(
+              this,
+              (stage, done, total) ->
+                  runOnUiThread(
+                      () -> {
+                        installStatus.setText(stage);
+                        installProgress.setProgress(
+                            total > 0 ? (int) (done * 1000 / total) : 0);
+                      }));
+          return null;
+        },
+        ignored -> startTerminal(),
+        error -> {
+          installStatus.setText("安装失败：" + error.getMessage());
+          installRetry.setVisibility(View.VISIBLE);
+        });
   }
 
   private void showInstall(String text) {
@@ -326,7 +319,7 @@ public class MainActivity extends Activity {
 
     Button deleteButton = new Button(this);
     deleteButton.setText("删除");
-    deleteButton.setTextColor(0xFFE57373);
+    deleteButton.setTextColor(Theme.DANGER);
     deleteButton.setMinimumWidth(0);
     deleteButton.setOnClickListener(v -> deleteSession(session, dialog, refresh));
     row.addView(deleteButton);
@@ -363,21 +356,16 @@ public class MainActivity extends Activity {
       for (TerminalSession s : List.copyOf(service.sessions())) service.removeSession(s);
     }
     showInstall("正在删除旧环境…");
-    new Thread(
-            () -> {
-              try {
-                new Rootfs(this).delete();
-                runOnUiThread(
-                    () -> {
-                      if (service != null) service.setOnExit(MainActivity.this::finishAndRemoveTask);
-                      ensureInstalledThenStart();
-                    });
-              } catch (IOException error) {
-                runOnUiThread(() -> installStatus.setText("删除失败：" + error.getMessage()));
-              }
-            },
-            "rootfs-reset")
-        .start();
+    Async.run(this, "rootfs-reset",
+        () -> {
+          new Rootfs(this).delete();
+          return null;
+        },
+        ignored -> {
+          if (service != null) service.setOnExit(MainActivity.this::finishAndRemoveTask);
+          ensureInstalledThenStart();
+        },
+        error -> installStatus.setText("删除失败：" + error.getMessage()));
   }
 
   private void showKeyboard() {
@@ -423,7 +411,7 @@ public class MainActivity extends Activity {
     Button button = new Button(this, null, 0, android.R.style.Widget_DeviceDefault_Button_Borderless);
     button.setText(label);
     button.setAllCaps(false);
-    button.setTextColor(Color.WHITE);
+    button.setTextColor(Theme.TEXT);
     button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
     button.setGravity(Gravity.CENTER);
     button.setMinWidth(0);
@@ -439,7 +427,7 @@ public class MainActivity extends Activity {
   }
 
   /** 标签的近似视觉宽度（dp）：中文按 12、大写字母 7.4、其余 6，再加左右各 2dp padding。 */
-  private static float keyWeight(String label) {
+  static float keyWeight(String label) {
     float width = 4;
     for (int i = 0; i < label.length(); i++) {
       char c = label.charAt(i);
@@ -453,9 +441,9 @@ public class MainActivity extends Activity {
   }
 
   private void refreshModifiers() {
-    ctrlButton.setTextColor(ctrlDown ? 0xFFE95420 : Color.WHITE);
-    altButton.setTextColor(altDown ? 0xFFE95420 : Color.WHITE);
-    shiftButton.setTextColor(shiftDown ? 0xFFE95420 : Color.WHITE);
+    ctrlButton.setTextColor(ctrlDown ? Theme.ACCENT : Theme.TEXT);
+    altButton.setTextColor(altDown ? Theme.ACCENT : Theme.TEXT);
+    shiftButton.setTextColor(shiftDown ? Theme.ACCENT : Theme.TEXT);
   }
 
   // ---------------------------------------------------------------- Termux 回调

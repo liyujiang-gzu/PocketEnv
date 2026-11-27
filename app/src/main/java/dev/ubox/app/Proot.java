@@ -119,15 +119,10 @@ final class Proot {
 
   /** 非交互地在 guest 里执行一段 bash 脚本，stdout/stderr 合并读取。 */
   String run(String script, long timeoutMs) throws IOException, InterruptedException {
-    prepare();
     ProcessBuilder builder =
         new ProcessBuilder(argv("/bin/bash", "-c", script)).redirectErrorStream(true);
     builder.redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")));
-    builder.environment().clear();
-    for (String entry : environment()) {
-      int split = entry.indexOf('=');
-      builder.environment().put(entry.substring(0, split), entry.substring(split + 1));
-    }
+    UbuntuProcess.applyEnvironment(builder, this);
     Process process = builder.start();
     java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
     Thread reader =

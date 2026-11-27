@@ -204,7 +204,7 @@ final class Rootfs {
   // ---------------------------------------------------------------- 工具方法
 
   /** 去掉 ./ 前缀，拒绝绝对路径和 ..，防止解压到 rootfs 外面。 */
-  private static String normalize(String name) {
+  static String normalize(String name) {
     while (name.startsWith("./")) name = name.substring(2);
     while (name.startsWith("/")) name = name.substring(1);
     if (name.endsWith("/")) name = name.substring(0, name.length() - 1);
