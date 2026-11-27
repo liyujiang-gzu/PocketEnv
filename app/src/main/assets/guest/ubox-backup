@@ -1,11 +1,11 @@
 #!/bin/bash
 # Ubuntu 增量备份：只打包在 Ubuntu Base 之上新增的文件，跳过基线已有文件与空目录。
 # 用法: ubox-backup
-# 输出: /sdcard/PocketEnv/backups/backup-YYYYmmdd-HHMMSS.tar.gz
+# 输出: /sdcard/Download/backups/backup-YYYYmmdd-HHMMSS.tar.gz
 set -uo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-BACKUP_DIR=/sdcard/PocketEnv/backups
+BACKUP_DIR=/sdcard/Download/backups
 BASE_DIR=/usr/local/lib/ubox
 BASE_FILES="$BASE_DIR/base-files.txt"
 BASE_PACKAGES="$BASE_DIR/base-packages.txt"
@@ -66,7 +66,14 @@ echo "==> 待打包文件：$count 个"
 echo "==> 生成归档 $out"
 tar -czf "$out" -T "$tmp/files" || { echo "归档失败"; exit 1; }
 
+echo "==> 生成 SHA-256 校验文件"
+if ( cd "$BACKUP_DIR" && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" ); then
+  echo "校验文件：$(basename "$out").sha256"
+else
+  echo "⚠️ 校验文件生成失败，还原时将只做 gzip 完整性检查"
+fi
+
 echo
 echo "✅ 增量备份完成"
-ls -lh "$out"
+ls -lh "$out" "$out.sha256" 2>/dev/null
 echo "包含：$count 个新增文件、$(wc -l < "$ADDED_PACKAGES") 个新增软件包（清单见归档内 added-packages.txt）"

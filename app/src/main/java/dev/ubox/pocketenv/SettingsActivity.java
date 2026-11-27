@@ -19,6 +19,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
+import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.View;
@@ -28,9 +30,16 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.Toolbar;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /** 设置页：软件源切换、工具安装、SSH 管理。安装在新终端会话里执行，进度和错误都直接可见。
@@ -41,6 +50,7 @@ public class SettingsActivity extends Activity {
   static final String EXTRA_NAME = "name";
   static final String EXTRA_COMMAND = "command";
   static final String EXTRA_RESET = "reset";
+  private static final int REQUEST_PICK_BACKUP = 3;
 
   /** APT 源：切换走 ubox-mirror。 */
   private static final MirrorOption[] MIRRORS = {
@@ -210,6 +220,20 @@ public class SettingsActivity extends Activity {
     return true;
   }
 
+  @Override
+  protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+    if (requestCode != REQUEST_PICK_BACKUP || resultCode != RESULT_OK
+        || data == null || data.getData() == null) return;
+    Uri uri = data.getData();
+    String name = displayName(uri);
+    if (name != null && !isBackupFile(name)) {
+      Toast.makeText(this, "请选择 .tar.gz 或 .tgz 格式的备份文件", Toast.LENGTH_LONG).show();
+      return;
+    }
+    confirmRestore(uri, safeFileName(name));
+  }
+
   // ---------------------------------------------------------------- 状态
 
   public void refreshStatus() {
@@ -373,10 +397,149 @@ public class SettingsActivity extends Activity {
     backupRow.setOnClickListener(v -> runInTerminal("备份 Ubuntu 新增内容", "ubox-backup"));
     list.addView(backupRow);
 
+    LinearLayout restoreRow = row("还原 Ubuntu 数据", null);
+    subtitle(restoreRow).setText("从 .tar.gz 备份文件恢复，覆盖现有同名文件，请先授权访问 /sdcard");
+    restoreRow.setOnClickListener(v -> pickBackup());
+    list.addView(restoreRow);
+
     LinearLayout resetRow = row("重置 Ubuntu 环境", null);
     subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复，请谨慎操作");
     resetRow.setOnClickListener(v -> confirmReset());
     list.addView(resetRow);
+  }
+
+  // ---------------------------------------------------------------- 还原
+
+  /** 系统文件选择器挑备份文件；选中后复制到 guest 可见的应用外部目录再还原。 */
+  private void pickBackup() {
+    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+        .addCategory(Intent.CATEGORY_OPENABLE)
+        .setType("*/*");
+    // 默认打开备份输出目录；目录不存在时由文件选择器自行处理
+    intent.putExtra(
+        DocumentsContract.EXTRA_INITIAL_URI,
+        DocumentsContract.buildDocumentUri(
+            "com.android.externalstorage.documents", "primary:Download/backups"));
+    startActivityForResult(intent, REQUEST_PICK_BACKUP);
+  }
+
+  private void confirmRestore(Uri uri, String name) {
+    new AlertDialog.Builder(this)
+        .setTitle("还原 Ubuntu 数据")
+        .setMessage("将从「" + name + "」恢复备份：\n\n"
+            + "• 覆盖当前环境中的同名文件，备份之后新增的文件会保留\n"
+            + "• 正在运行的 SSH 服务会先停止\n"
+            + "• 还原不可撤销，建议先做一次增量备份\n\n确定继续吗？")
+        .setNegativeButton("取消", null)
+        .setPositiveButton("还原", (dialog, which) -> copyAndRestore(uri, name))
+        .show();
+  }
+
+  private void copyAndRestore(Uri uri, String name) {
+    File external = getExternalFilesDir(null);
+    if (external == null) {
+      Toast.makeText(this, "外部存储不可用，无法准备备份文件", Toast.LENGTH_LONG).show();
+      return;
+    }
+    File dir = new File(external, "restore");
+    if (!dir.isDirectory() && !dir.mkdirs()) {
+      Toast.makeText(this, "无法创建临时目录：" + dir, Toast.LENGTH_LONG).show();
+      return;
+    }
+    File archive = new File(dir, name);
+    File partial = new File(dir, name + ".part");
+    AlertDialog progress = new AlertDialog.Builder(this)
+        .setTitle("准备还原")
+        .setMessage("正在复制备份文件…\n\n文件较大时可能需要一段时间，请勿退出。")
+        .setCancelable(false)
+        .create();
+    progress.show();
+    Async.run(this, "restore-copy",
+        () -> {
+          File sidecar = new File(archive.getPath() + ".sha256");
+          sidecar.delete(); // 避免上一次选择留下的旧校验文件误伤本次归档
+          try (InputStream in = getContentResolver().openInputStream(uri);
+              OutputStream out = new FileOutputStream(partial)) {
+            if (in == null) throw new IOException("无法读取所选文件");
+            in.transferTo(out);
+          }
+          archive.delete();
+          if (!partial.renameTo(archive)) throw new IOException("无法写入 " + archive);
+          copyChecksum(uri, archive);
+          return null;
+        },
+        ignored -> {
+          progress.dismiss();
+          stopSshThenRestore(archive);
+        },
+        error -> {
+          progress.dismiss();
+          partial.delete();
+          Toast.makeText(this, "复制失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
+        });
+  }
+
+  /** 从标准备份目录选择时顺带复制同名 .sha256；拿不到就跳过，由脚本退化为 gzip 校验。 */
+  private void copyChecksum(Uri uri, File archive) {
+    try {
+      if (!"com.android.externalstorage.documents".equals(uri.getAuthority())) return;
+      String docId = DocumentsContract.getDocumentId(uri);
+      int split = docId.indexOf(':');
+      if (split <= 0) return;
+      String volume = docId.substring(0, split);
+      File root = "primary".equals(volume)
+          ? Environment.getExternalStorageDirectory() : new File("/storage", volume);
+      File source = new File(root, docId.substring(split + 1) + ".sha256");
+      if (!source.isFile()) return;
+      try (InputStream in = new FileInputStream(source);
+          OutputStream out = new FileOutputStream(new File(archive.getPath() + ".sha256"))) {
+        in.transferTo(out);
+      }
+    } catch (Exception ignored) {
+      // 无存储权限或文件提供方不支持定位旁文件
+    }
+  }
+
+  private void stopSshThenRestore(File archive) {
+    String command = "ubox-restore " + shellQuote(archive.getAbsolutePath());
+    if (service == null || !service.isSshRunning()) {
+      runInTerminal("还原 Ubuntu 数据", command);
+      return;
+    }
+    Async.run(this, "restore-stop-ssh",
+        () -> {
+          service.stopSsh();
+          return null;
+        },
+        ignored -> runInTerminal("还原 Ubuntu 数据", command),
+        error -> runInTerminal("还原 Ubuntu 数据", command));
+  }
+
+  private String displayName(Uri uri) {
+    try (android.database.Cursor cursor = getContentResolver()
+        .query(uri, new String[] {OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+      if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+    } catch (RuntimeException ignored) {
+      // 个别文件提供方不支持查询，交给扩展名兜底
+    }
+    return null;
+  }
+
+  /** 只接受 gzip 备份，避免把任意文件复制进还原目录。 */
+  static boolean isBackupFile(String name) {
+    String lower = name.toLowerCase(Locale.ROOT);
+    return lower.endsWith(".tar.gz") || lower.endsWith(".tgz");
+  }
+
+  /** 去掉路径分隔符，避免 SAF 返回的文件名把文件写到目标目录之外。 */
+  static String safeFileName(String name) {
+    if (name == null) return "restore.tar.gz";
+    name = name.replace('/', '_').replace('\\', '_').trim();
+    return name.isEmpty() || name.equals(".") || name.equals("..") ? "restore.tar.gz" : name;
+  }
+
+  private static String shellQuote(String value) {
+    return "'" + value.replace("'", "'\\''") + "'";
   }
 
   /** 返回设置页时刷新授权与电池优化状态。 */
