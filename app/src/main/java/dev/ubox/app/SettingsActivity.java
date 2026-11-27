@@ -75,6 +75,8 @@ public class SettingsActivity extends Activity {
 
   /** 项目 Gitee 开源地址，「关于我们」跳转用。 */
   private static final String GITEE_URL = "https://gitee.com/li_yu_jiang/PocketEnv";
+  /** 意见反馈地址，跳转 Gitee Issues。 */
+  private static final String FEEDBACK_URL = "https://gitee.com/li_yu_jiang/PocketEnv/issues";
 
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
@@ -443,6 +445,11 @@ public class SettingsActivity extends Activity {
     subtitle(introRow).setText("口袋环境 · 在 Android 上运行完整 Ubuntu 环境，点此访问 Gitee 开源地址");
     introRow.setOnClickListener(v -> openUrl(GITEE_URL));
     list.addView(introRow);
+
+    LinearLayout feedbackRow = row("意见反馈", null);
+    subtitle(feedbackRow).setText("点此在 Gitee 提交问题或建议");
+    feedbackRow.setOnClickListener(v -> openUrl(FEEDBACK_URL));
+    list.addView(feedbackRow);
 
     LinearLayout licenseRow = row("第三方开源许可", null);
     subtitle(licenseRow).setText("查看本应用使用的第三方组件及其许可证");
