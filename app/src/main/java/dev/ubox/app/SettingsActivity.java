@@ -857,31 +857,69 @@ public class SettingsActivity extends Activity {
   }
 
   private void toggleSsh() {
+    // 按钮和整行都可点击，启停进行中时忽略重复点击
+    if (!sshButton.isEnabled()) return;
     if (!sshInstalled) {
       runInTerminal("安装 SSH 服务", "ubox-install apt openssh-server");
       return;
     }
-    if (service == null) return;
-    if (service.isSshRunning()) {
-      service.stopSsh();
-      updateSshUi();
+    TerminalService bound = service;
+    if (bound == null) return;
+    sshButton.setEnabled(false);
+    if (bound.isSshRunning()) {
+      sshState.setText("停止中…");
+      new Thread(
+              () -> {
+                boolean freed = bound.stopSsh();
+                runOnUiThread(
+                    () -> {
+                      sshButton.setEnabled(true);
+                      updateSshUi();
+                      if (!freed)
+                        Toast.makeText(
+                                this,
+                                "端口 " + TerminalService.SSH_PORT + " 仍被其他程序占用",
+                                Toast.LENGTH_LONG)
+                            .show();
+                    });
+              },
+              "settings-ssh-stop")
+          .start();
       return;
     }
-    try {
-      service.startSsh();
-    } catch (java.io.IOException error) {
-      Toast.makeText(this, "启动失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
-    }
-    // sshd 启动需要一两秒，之后检查它是否还活着
     sshState.setText("启动中…");
-    sshState.postDelayed(
-        () -> {
-          updateSshUi();
-          if (service != null && !service.isSshRunning()) showSshLog();
-          else if (sshKeyCount == 0 && !sshHasPassword)
-            Toast.makeText(this, "SSH 已启动，请先添加公钥或设置密码", Toast.LENGTH_LONG).show();
-        },
-        2500);
+    new Thread(
+            () -> {
+              String failure = null;
+              try {
+                bound.startSsh();
+              } catch (java.io.IOException error) {
+                failure = error.getMessage();
+              }
+              String message = failure;
+              runOnUiThread(
+                  () -> {
+                    sshButton.setEnabled(true);
+                    if (message != null) {
+                      updateSshUi();
+                      Toast.makeText(this, "启动失败：" + message, Toast.LENGTH_LONG).show();
+                      return;
+                    }
+                    // sshd 启动需要一两秒，之后检查它是否还活着
+                    sshState.setText("启动中…");
+                    sshState.postDelayed(
+                        () -> {
+                          updateSshUi();
+                          if (service != null && !service.isSshRunning()) showSshLog();
+                          else if (sshKeyCount == 0 && !sshHasPassword)
+                            Toast.makeText(this, "SSH 已启动，请先添加公钥或设置密码", Toast.LENGTH_LONG)
+                                .show();
+                        },
+                        2500);
+                  });
+            },
+            "settings-ssh-start")
+        .start();
   }
 
   private void copySshCommand() {
