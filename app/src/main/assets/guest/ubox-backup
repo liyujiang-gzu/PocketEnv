@@ -1,0 +1,72 @@
+#!/bin/bash
+# Ubuntu 增量备份：只打包在 Ubuntu Base 之上新增的文件，跳过基线已有文件与空目录。
+# 用法: ubox-backup
+# 输出: /sdcard/PocketEnv/backups/backup-YYYYmmdd-HHMMSS.tar.gz
+set -uo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+BACKUP_DIR=/sdcard/PocketEnv/backups
+BASE_DIR=/usr/local/lib/ubox
+BASE_FILES="$BASE_DIR/base-files.txt"
+BASE_PACKAGES="$BASE_DIR/base-packages.txt"
+ADDED_PACKAGES="$BASE_DIR/added-packages.txt"
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+echo "==> 检查基线清单"
+for f in "$BASE_FILES" "$BASE_PACKAGES"; do
+  [ -f "$f" ] || { echo "缺少基线清单：$f"; exit 1; }
+done
+
+echo "==> 准备输出目录 $BACKUP_DIR"
+mkdir -p "$BACKUP_DIR" || { echo "无法创建 $BACKUP_DIR，请先在设置页授权访问 /sdcard"; exit 1; }
+out="$BACKUP_DIR/backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+
+# 相对 Ubuntu Base 新增的包清单，随归档一起保存，便于恢复时参考
+dpkg-query -W -f='${Package}\n' 2>/dev/null | sort -u > "$tmp/all-packages"
+comm -23 "$tmp/all-packages" "$BASE_PACKAGES" > "$ADDED_PACKAGES"
+echo "==> 新增软件包：$(wc -l < "$ADDED_PACKAGES") 个"
+
+# 排除清单：基线文件路径（转成绝对路径）+ 虚拟文件系统、缓存、手机共享存储
+{
+  sed 's|^|/|' "$BASE_FILES"
+  cat <<'EOF'
+/proc
+/sys
+/dev
+/run
+/tmp
+/sdcard
+/data
+/system
+/apex
+/storage
+/var/cache/apt
+/var/lib/apt/lists
+/root/.gradle/caches
+/root/.npm/_cacache
+/root/.cache
+EOF
+} > "$tmp/excludes"
+
+# 只列文件和符号链接，不列目录：空目录（0 字节）自然被排除
+echo "==> 扫描新增文件"
+find / -xdev \
+  \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp \
+     -o -path /sdcard -o -path /data -o -path /system -o -path /apex -o -path /storage \) \
+  -prune -o \( -type f -o -type l \) -print0 2>/dev/null \
+  | tr '\0' '\n' \
+  | grep -F -x -v -f "$tmp/excludes" > "$tmp/files" || true
+count=$(wc -l < "$tmp/files")
+echo "==> 待打包文件：$count 个"
+
+[ "$count" -gt 0 ] || { echo "没有需要备份的新增文件"; exit 1; }
+
+echo "==> 生成归档 $out"
+tar -czf "$out" -T "$tmp/files" || { echo "归档失败"; exit 1; }
+
+echo
+echo "✅ 增量备份完成"
+ls -lh "$out"
+echo "包含：$count 个新增文件、$(wc -l < "$ADDED_PACKAGES") 个新增软件包（清单见归档内 added-packages.txt）"

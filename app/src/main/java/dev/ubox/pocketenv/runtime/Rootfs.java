@@ -168,10 +168,14 @@ public final class Rootfs {
     writeAsset(context, "guest/ubox-install", new File(local, "ubox-install"), 0755);
     writeAsset(context, "guest/ubox-android-sdk", new File(local, "ubox-android-sdk"), 0755);
     writeAsset(context, "guest/ubox-sshd", new File(local, "ubox-sshd"), 0755);
+    writeAsset(context, "guest/ubox-backup", new File(local, "ubox-backup"), 0755);
     if (new File("/system/bin/ping").exists())
       writeAsset(context, "guest/ping", new File(local, "ping"), 0755);
     writeAsset(
         context, "guest/node-compat.cjs", new File(rootfs, "usr/local/lib/ubox/node-compat.cjs"), 0644);
+    File uboxLib = new File(rootfs, "usr/local/lib/ubox");
+    writeAsset(context, "guest/base-files.txt", new File(uboxLib, "base-files.txt"), 0644);
+    writeAsset(context, "guest/base-packages.txt", new File(uboxLib, "base-packages.txt"), 0644);
     writeAsset(context, "guest/profile.sh", new File(rootfs, "etc/profile.d/ubox.sh"), 0644);
     writeAsset(context, "guest/motd", new File(rootfs, "etc/ubox-motd"), 0644);
     // 授权（如存储）后应用会获得新的补充组，每次都补齐

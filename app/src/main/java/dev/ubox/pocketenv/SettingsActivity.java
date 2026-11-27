@@ -370,6 +370,11 @@ public class SettingsActivity extends Activity {
     batteryRow.setOnClickListener(v -> requestIgnoreBatteryOptimizations());
     list.addView(batteryRow);
 
+    LinearLayout backupRow = row("增量备份 Ubuntu", null);
+    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/PocketEnv/backups");
+    backupRow.setOnClickListener(v -> runInTerminal("增量备份", "ubox-backup"));
+    list.addView(backupRow);
+
     LinearLayout resetRow = row("重置 Ubuntu 环境", null);
     subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复");
     resetRow.setOnClickListener(v -> confirmReset());
