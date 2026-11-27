@@ -1,8 +1,8 @@
 # UbuntuBox - Pocket Develop Environment
 
-在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) 环境，免 root、免 Termux，用来安装开发环境和运行各种 CLI Agent。
+口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) ，免 root、免 Termux，内置TypeScript/Python/Go/Java/C等语言编译环境和OpenCode/Codex/CodeBuddy/QwenCode等编程智能体，Ubuntu与Android文件系统互通。
 
-基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT）二次开发，运行时部分剥离自 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（MIT），只保留了 [proot](https://github.com/proot-me/proot) 运行时、启动参数和 [Termux 终端](https://github.com/termux/termux-app/tree/master/terminal-view)，DSH 相关的插件、备份、补丁体系以及设备自动化功能都去掉了。
+基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT）二次开发，运行时部分剥离自 [DSH-APP/DSHA](https://github.com/DSH-APP/DSHA)（MIT），只保留了 [proot](https://github.com/proot-me/proot)（GPL-2.0） 运行时、启动参数和 [Termux 终端](https://github.com/termux/termux-app/tree/master/terminal-view)（Apache-2.0），DSH 相关的插件、备份、补丁体系以及设备自动化功能都去掉了。
 
 ## 功能特性
 
@@ -12,7 +12,7 @@
 - 支持 Ubuntu 系统访问安卓文件系统（挂载 /sdcard ）
 - **支持安卓文件管理器直接访问 Ubuntu 文件系统**
 - 内置 SSH 服务，方便远程访问
-- 支持切换中国大陆友好的软件源（APT、NPM、PyPI）
+- 支持切换中国大陆友好的软件源（APT、NPM、PyPI 等）
 - 预置 Git、Node.js 22、Python 3 等开发环境及多种编程智能体的快捷安装支持
 
 ## 构建
@@ -28,7 +28,7 @@
 **构建要求：**
 - JDK 17
 - Android SDK 36
-- NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`）
+- NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`，。注意法律合规，若修改了需按 Apache 2.0 协议进行说明）
 
 构建产物：`app/build/outputs/apk/debug/app-debug.apk`
 
@@ -72,15 +72,18 @@
 ### 额外按键
 
 应用支持以下额外按键：
-- ESC / TAB / CTRL / ALT
+- ESC / TAB / CTRL / ALT / SHIFT / ENTER
 - 方向键
 - 功能键（F1-F12）
+- 常用符号
 
-## 许可
+## 许可协议
 
-- **本项目二开代码**：采用国内的 MulanPSL 许可（见 `LICENSE`）
+> 合规注意事项：本项目用了 GPL 协议的 proot 动态链接库，没有进程隔离。由于 GPL 协议的传染性，即使你只用二进制库、一行代码都没抄，只要对外分发，主程序就有被认定为“衍生作品”而非“聚合体”的风险，完整开源项目代码才可以规避法律风险。
+
+- **本项目二开代码**：采用国内的 MulanPSL v2 许可（见 `LICENSE`）
 - **ubuntu-box 基线代码**：沿用 DSHA 的 MIT 许可（见 `assets/licenses/DSHA-LICENSE.txt`）
-- **libproot.so / libprootloader*.so**：Termux proot，GPL-2.0（`assets/licenses/proot-COPYING.txt`）。对外分发 APK 时需要按 GPL 提供对应源码
+- **libproot.so / libprootloader*.so**：Termux proot，GPL-2.0（`assets/licenses/proot-COPYING.txt`）。对外分发 APK 时需要按 GPL 提供[对应源码](https://github.com/proot-me/proot)
 - **libtalloc.so**：LGPL
 - **libandroidshmem.so**：来源同 DSHA，原仓库标注许可未核实
 - **Termux terminal-view / terminal-emulator 及 native/termux-jni/termux.c**：Apache-2.0
