@@ -166,6 +166,7 @@ final class Rootfs {
     writeAsset(context, "guest/ubox-goproxy", new File(local, "ubox-goproxy"), 0755);
     writeAsset(context, "guest/ubox-node", new File(local, "ubox-node"), 0755);
     writeAsset(context, "guest/ubox-install", new File(local, "ubox-install"), 0755);
+    writeAsset(context, "guest/ubox-android-sdk", new File(local, "ubox-android-sdk"), 0755);
     writeAsset(context, "guest/ubox-sshd", new File(local, "ubox-sshd"), 0755);
     if (new File("/system/bin/ping").exists())
       writeAsset(context, "guest/ping", new File(local, "ping"), 0755);
