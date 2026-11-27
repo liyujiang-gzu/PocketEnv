@@ -2,6 +2,13 @@ plugins {
     id 'com.android.application'
 }
 
+// 签名信息放在本地 keystore.properties（已 gitignore），不入库
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace 'dev.ubox.app'
     compileSdk 36
@@ -19,10 +26,22 @@ android {
 
     signingConfigs {
         debug {
-            // 只启用 v2/v3 签名（release 复用此配置）。
+            // 只启用 v2/v3 签名（release 同）。
             // v2：APK 全文件签名，Android 7+ 必须；v3（PKCS#7）：支持密钥轮换，Android 9+ 推荐。
             // v1（JAR 签名）仅 Android 6 及以下需要，本项目 minSdk 26 用不到；
             // v4（增量安装签名）按需开启，这里不需要。
+            enableV1Signing false
+            enableV2Signing true
+            enableV3Signing true
+            enableV4Signing false
+        }
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties.getProperty('storeFile'))
+                storePassword keystoreProperties.getProperty('storePassword')
+                keyAlias keystoreProperties.getProperty('keyAlias')
+                keyPassword keystoreProperties.getProperty('keyPassword')
+            }
             enableV1Signing false
             enableV2Signing true
             enableV3Signing true
@@ -33,8 +52,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            // 未配置正式签名前先用 debug 签名，方便直接安装
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
 
