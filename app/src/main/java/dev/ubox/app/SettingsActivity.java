@@ -2,7 +2,6 @@ package dev.ubox.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -11,7 +10,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
@@ -25,172 +23,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 软件源切换和常用工具的安装。安装在新终端会话里执行，进度和错误都直接可见。 */
+/** 设置页：软件源切换、工具安装、SSH 管理。安装在新终端会话里执行，进度和错误都直接可见。
+ *
+ *  <p>工具目录数据在 {@link Toolbox}，软件源模型在 {@link MirrorOption}，本类只负责 UI 组装与交互。
+ */
 public class SettingsActivity extends Activity {
   static final String EXTRA_NAME = "name";
   static final String EXTRA_COMMAND = "command";
   static final String EXTRA_RESET = "reset";
-  private static final String TAG = "UbuntuBox";
-
-  enum Kind { APT, NODE, NPM, UV, GO, CURL, GRADLE, ANDROID_SDK }
-
-  /** packages：apt/npm 包名；check：NODE/NPM 用来判断是否已安装的命令名。 */
-  record Tool(String id, String title, String summary, Kind kind, String[] packages, String check) {
-    String installCommand() {
-      switch (kind) {
-        case APT: return "ubox-install apt " + String.join(" ", packages);
-        case NPM:
-          // 兜底：个别 npm 包的 bin 可能没正确注册进 PATH（装完 command -v 找不到）。
-          // 这里在 npm 装完后补建软链（仅当命令缺失且包内二进制存在时），自带 bin
-          // 的包不会触发，不影响正常安装。
-          String bin = check, pkg = packages[0];
-          return "ubox-install npm " + pkg
-              + " && command -v " + bin + " >/dev/null 2>&1 || { f=$(npm root -g)"
-              + "/" + pkg + "/bin/" + bin
-              + "; [ -x \"$f\" ] && ln -sf \"$f\" /usr/local/bin/" + bin
-              + " && echo 已为 " + bin + " 创建命令链接 || echo 未找到 " + bin + " 二进制; }";
-        case UV: return "ubox-install uv";
-        case GO: return "ubox-install go";
-        case GRADLE: return "ubox-install gradle";
-        case ANDROID_SDK: return "ubox-install android-sdk";
-        case CURL: return "curl -fsSL " + packages[0] + " | bash";
-        case NODE: return "ubox-install node";
-        default: throw new IllegalStateException("未处理的安装类型: " + kind);
-      }
-    }
-
-    String removeCommand() {
-      switch (kind) {
-        case APT: return "ubox-install apt-remove " + String.join(" ", packages);
-        case NPM: return "ubox-install npm-remove " + String.join(" ", packages);
-        case UV: return "rm -f /usr/local/bin/uv \"$HOME/.local/bin/uv\" \"$HOME/.local/bin/uvx\""
-            + " && echo 已卸载 uv";
-        case GO: return "rm -rf /usr/local/go /usr/local/bin/go /usr/local/bin/gofmt"
-            + " && echo 已卸载 Go";
-        case GRADLE: return "rm -rf /usr/local/gradle /usr/local/bin/gradle"
-            + " && echo 已卸载 Gradle";
-        case ANDROID_SDK: return "ubox-install android-sdk remove";
-        case CURL:
-          if (id.equals("qwen"))
-            // qwen 装到 ~/.local/bin/qwen + ~/.local/lib/qwen-code，PATH block 写进 .bashrc
-            return "rm -f \"$HOME/.local/bin/qwen\" && rm -rf \"$HOME/.local/lib/qwen-code\""
-                + " && sed -i '/# Qwen Code PATH block begin/,/# Qwen Code PATH block end/d'"
-                + " \"$HOME/.bashrc\" && echo 已卸载 QwenCode";
-          // opencode 装到 ~/.opencode
-          return "rm -rf \"$HOME/.opencode\""
-              + " && sed -i '/# opencode/d; /\\.opencode\\/bin/d' \"$HOME/.bashrc\""
-              + " && echo 已卸载 OpenCode";
-        case NODE: return "rm -rf /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx"
-            + " /usr/local/bin/corepack /usr/local/lib/node_modules/npm /usr/local/include/node"
-            + " && echo 已卸载 Node.js";
-        default: throw new IllegalStateException("未处理的卸载类型: " + kind);
-      }
-    }
-
-    String statusCheck() {
-      if (kind == Kind.APT)
-        return "n=$(dpkg-query -W -f='${db:Status-Status}\\n' " + String.join(" ", packages)
-            + " 2>/dev/null | grep -c '^installed$'); [ \"$n\" = " + packages.length
-            + " ] && echo " + id + "=1 || echo " + id + "=0";
-      if (kind == Kind.UV)
-        // uv 官方脚本装到 ~/.local/bin（不在非交互 shell 的 PATH），补软链前
-        // command -v uv 可能找不到，故再回退检查 ~/.local/bin/uv 是否存在。
-        return "if command -v uv >/dev/null 2>&1 || [ -x \"$HOME/.local/bin/uv\" ]; "
-            + "then echo " + id + "=1; else echo " + id + "=0; fi";
-      if (kind == Kind.GO)
-        // Go tarball 装到 /usr/local/go 并软链 go 到 /usr/local/bin。软链在 PATH 里，
-        // command -v go 通常能命中；再回退检查 /usr/local/go/bin/go 兜底。
-        return "if command -v go >/dev/null 2>&1 || [ -x /usr/local/go/bin/go ]; "
-            + "then echo " + id + "=1; else echo " + id + "=0; fi";
-      if (kind == Kind.GRADLE)
-        // Gradle 解压到 /usr/local/gradle 并软链 gradle 到 /usr/local/bin。软链在
-        // PATH 里，command -v gradle 通常能命中；再回退检查实际目录兜底。
-        return "if command -v gradle >/dev/null 2>&1 || [ -x /usr/local/gradle/bin/gradle ]; "
-            + "then echo " + id + "=1; else echo " + id + "=0; fi";
-      if (kind == Kind.ANDROID_SDK)
-        // SDK 装在 /opt/android-sdk，aapt2 等原生工具在 build-tools 目录里。
-        // 直接查固定路径：非交互 shell 不一定加载 /etc/profile.d 的 PATH。
-        return "if [ -x /opt/android-sdk/build-tools/36.0.0/aapt2 ]"
-            + " && [ -d /opt/android-sdk/platforms/android-36 ]; "
-            + "then echo " + id + "=1; else echo " + id + "=0; fi";
-      if (kind == Kind.CURL) {
-        // curl 脚本装到各自目录并把该目录写进 .bashrc 的 PATH。非交互 shell 不一定
-        // source .bashrc，故再回退检查实际二进制：opencode 在 ~/.opencode/bin，
-        // qwen 在 ~/.local/bin。
-        String curlBin = id.equals("qwen") ? "$HOME/.local/bin" : "$HOME/.opencode/bin";
-        return "if command -v " + check + " >/dev/null 2>&1 || [ -x \"" + curlBin + "/" + check + "\" ]; "
-            + "then echo " + id + "=1; else echo " + id + "=0; fi";
-      }
-      return "command -v " + check + " >/dev/null 2>&1 && echo " + id + "=1 || echo " + id + "=0";
-    }
-  }
-
-  record Section(String title, Tool... tools) {}
-
-  private static Tool apt(String id, String title, String summary, String... packages) {
-    return new Tool(id, title, summary, Kind.APT, packages, null);
-  }
-
-  private static Tool npm(String id, String title, String summary, String bin, String pkg) {
-    return new Tool(id, title, summary, Kind.NPM, new String[] {pkg}, bin);
-  }
-
-  private static Tool go(String id, String title, String summary) {
-    return new Tool(id, title, summary, Kind.GO, new String[0], "go");
-  }
-
-  private static Tool gradle(String id, String title, String summary) {
-    return new Tool(id, title, summary, Kind.GRADLE, new String[0], "gradle");
-  }
-
-  private static Tool androidSdk(String id, String title, String summary) {
-    return new Tool(id, title, summary, Kind.ANDROID_SDK, new String[0], null);
-  }
-
-  /** curl 官方脚本安装（packages[0] = 安装脚本 URL），check = 装完的命令名。 */
-  private static Tool curl(String id, String title, String summary, String url, String bin) {
-    return new Tool(id, title, summary, Kind.CURL, new String[] {url}, bin);
-  }
-
-  static final Section[] SECTIONS = {
-    new Section(
-        "常用工具",
-        apt("net", "网络工具", "curl、wget、dig、ifconfig 和 HTTPS 根证书（ping 已内置）",
-            "curl", "wget", "ca-certificates", "dnsutils", "net-tools"),
-        apt("cli", "常用命令", "less、htop、tree、zip/unzip、xz、jq、ripgrep、file、tmux",
-            "less", "htop", "tree", "zip", "unzip", "xz-utils", "jq", "ripgrep", "file",
-            "procps", "tmux"),
-        apt("editor", "编辑器", "nano、vim", "nano", "vim"),
-        apt("ssh", "SSH 客户端", "ssh、scp、ssh-keygen", "openssh-client")),
-    new Section(
-        "开发环境",
-        apt("git", "Git", "版本管理，Agent 改代码基本都需要", "git", "ca-certificates"),
-        new Tool("node", "Node.js 22", "官方 linux-arm64 版本，含 npm；AI Agent 依赖它",
-            Kind.NODE, new String[0], "node"),
-        apt("python", "Python 3", "python3、pip、venv；AI 时代的著名语言", "python3", "python3-pip", "python3-venv"),
-        new Tool("uv", "uv", "Astral 出品的高速 Python 包管理器（替代 pip/venv），需先装 Python 3",
-            Kind.UV, new String[0], "uv"),
-        apt("build", "C/C++", "gcc、g++、make；npm 原生模块编译需要", "build-essential"),
-        apt("jdk17", "OpenJDK 17", "Java/Kotlin 开发工具包 17；Gradle 9 运行需要", "openjdk-17-jdk"),
-        androidSdk("androidsdk", "Android SDK 36", "platform-36 + build-tools 36.0.0（arm64 原生工具），无 system image / source"),
-        apt("maven3", "Maven 3", "Java 项目构建与依赖管理（apt 自带 3.x）", "maven"),
-        gradle("gradle9", "Gradle 9", "官方 9.x 二进制包（腾讯云镜像 + 校验），缺 Java 时自动装 OpenJDK 17"),
-        go("golang", "Go", "官方 linux-arm64 tarball（golang.google.cn 镜像），含 go、gofmt")),
-    new Section(
-        "编程智能体",
-        curl("opencode", "OpenCode", "Anomaly · 官方脚本安装（含后台服务依赖），装到 ~/.opencode",
-            "https://opencode.ai/v2/install", "opencode"),
-        npm("claude", "Claude Code", "Anthropic · npm @anthropic-ai/claude-code", "claude",
-            "@anthropic-ai/claude-code"),
-        npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
-        npm("gemini", "Gemini CLI", "Google · npm @google/gemini-cli", "gemini",
-            "@google/gemini-cli"),
-        npm("codebuddy", "CodeBuddy", "Tencent · npm @tencent-ai/codebuddy-code",
-            "codebuddy", "@tencent-ai/codebuddy-code"),
-        curl("qwen", "QwenCode", "Alibaba · 官方脚本安装 QwenCode，装到 ~/.local",
-            "https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh",
-            "qwen")),
-  };
 
   /** APT 源：切换走 ubox-mirror。 */
   private static final MirrorOption[] MIRRORS = {
@@ -239,19 +79,15 @@ public class SettingsActivity extends Activity {
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
   private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, goProxyValue, statusLine;
-  private TextView sshState, sshCommand, sshKeys, sshPassword;
   private Button storageButton, batteryButton;
-  private Button sshButton;
-  private boolean sshInstalled;
-  private int sshKeyCount;
-  private boolean sshHasPassword;
   private TerminalService service;
+  private SshSection sshSection;
   private final android.content.ServiceConnection connection =
       new android.content.ServiceConnection() {
         @Override
         public void onServiceConnected(android.content.ComponentName name, android.os.IBinder binder) {
           service = ((TerminalService.LocalBinder) binder).service();
-          updateSshUi();
+          sshSection.bind(service);
         }
 
         @Override
@@ -297,9 +133,9 @@ public class SettingsActivity extends Activity {
     goRow.setOnClickListener(v -> chooseGoProxy());
     list.addView(goRow);
 
-    for (Section section : SECTIONS) {
+    for (Toolbox.Section section : Toolbox.SECTIONS) {
       list.addView(header(section.title()));
-      for (Tool tool : section.tools()) {
+      for (Toolbox.Tool tool : section.tools()) {
         Button action = actionButton();
         action.setOnClickListener(v -> onToolClicked(tool));
         buttons.put(tool.id(), action);
@@ -310,7 +146,8 @@ public class SettingsActivity extends Activity {
       }
     }
 
-    buildSshSection(list);
+    sshSection = new SshSection(this, this);
+    sshSection.build(list);
 
     Toolbar toolbar = new Toolbar(this);
     toolbar.setBackgroundColor(Theme.SURFACE);
@@ -356,24 +193,8 @@ public class SettingsActivity extends Activity {
 
   // ---------------------------------------------------------------- 状态
 
-  private void refreshStatus() {
-    StringBuilder script = new StringBuilder();
-    script.append("grep -m1 '^URIs:' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null"
-        + " | sed 's/^URIs: */mirror=/'\n");
-    // npm 源用空格分隔（URL 里含 = ，不能走下面按 = 切分的那套解析）
-    script.append("echo npmreg $(npm config get registry 2>/dev/null)\n");
-    // PyPI 源读 pip.conf 的 index-url（uv.toml 与之同步，展示以 pip 为准），同样空格分隔
-    script.append("echo pypi $(grep -m1 '^index-url' $HOME/.config/pip/pip.conf 2>/dev/null"
-        + " | sed 's/^index-url[[:space:]]*=[[:space:]]*//')\n");
-    // GO 源读 GOPROXY（切换脚本写入 /etc/profile.d/goproxy.sh），空格分隔避免 URL 里的 =
-    script.append("echo goproxy $(grep -m1 '^export GOPROXY' /etc/profile.d/goproxy.sh 2>/dev/null"
-        + " | sed -e 's/^export GOPROXY=//' -e 's/,direct$//' -e 's/\"//g')\n");
-    for (Section section : SECTIONS)
-      for (Tool tool : section.tools()) script.append(tool.statusCheck()).append('\n');
-    script.append("[ -x /usr/sbin/sshd ] && echo sshd=1 || echo sshd=0\n");
-    script.append("echo sshkeys=$(grep -cE '^(ssh-|ecdsa-|sk-)' /root/.ssh/authorized_keys 2>/dev/null || echo 0)\n");
-    script.append("awk -F: '$1==\"root\"{print \"sshpw=\" (($2 ~ /^[!*]/ || $2 == \"\") ? 0 : 1)}' /etc/shadow\n");
-    String statusScript = script.toString();
+  void refreshStatus() {
+    String statusScript = Toolbox.statusScript();
     Async.run(this, "settings-status",
         () -> UbuntuProcess.runScript(this, statusScript, UbuntuProcess.timeoutMs(30)),
         output -> applyStatus(output),
@@ -417,10 +238,8 @@ public class SettingsActivity extends Activity {
     npmRegistryValue.setText(describeNpmRegistry(npmRegistry));
     pypiMirrorValue.setText(describePypiMirror(pypiMirror));
     goProxyValue.setText(describeGoProxy(goProxy));
-    sshInstalled = Boolean.TRUE.equals(result.get("sshd"));
-    sshHasPassword = Boolean.TRUE.equals(result.get("sshpw"));
-    sshKeyCount = keys;
-    updateSshUi();
+    sshSection.updateStatus(
+        Boolean.TRUE.equals(result.get("sshd")), keys, Boolean.TRUE.equals(result.get("sshpw")));
     for (Map.Entry<String, Button> entry : buttons.entrySet())
       styleButton(entry.getValue(), Boolean.TRUE.equals(installed.get(entry.getKey())));
     statusLine.setText("安装会在新的终端会话中进行，完成后返回这里即可看到状态");
@@ -471,7 +290,7 @@ public class SettingsActivity extends Activity {
         this::refreshStatus);
   }
 
-  private void onToolClicked(Tool tool) {
+  private void onToolClicked(Toolbox.Tool tool) {
     if (!Boolean.TRUE.equals(installed.get(tool.id()))) {
       runInTerminal("安装 " + tool.title(), tool.installCommand());
       return;
@@ -487,10 +306,10 @@ public class SettingsActivity extends Activity {
         .show();
   }
 
-  private void confirmRemove(Tool tool) {
+  private void confirmRemove(Toolbox.Tool tool) {
     new AlertDialog.Builder(this)
         .setTitle("卸载 " + tool.title() + "？")
-        .setMessage(tool.kind() == Kind.APT
+        .setMessage(tool.kind() == Toolbox.Kind.APT
             ? "将执行 apt-get remove " + String.join(" ", tool.packages()) + "，依赖它们的其他软件也可能被一起移除。"
             : "将从 /usr/local 中移除。")
         .setNegativeButton("取消", null)
@@ -499,59 +318,9 @@ public class SettingsActivity extends Activity {
   }
 
   /** 交给 MainActivity 在新会话中执行，便于看到实时输出。 */
-  private void runInTerminal(String name, String command) {
+  void runInTerminal(String name, String command) {
     setResult(RESULT_OK, new Intent().putExtra(EXTRA_NAME, name).putExtra(EXTRA_COMMAND, command));
     finish();
-  }
-
-  // ---------------------------------------------------------------- SSH
-
-  private void buildSshSection(LinearLayout list) {
-    list.addView(header("局域网访问"));
-
-    sshButton = actionButton();
-    sshButton.setOnClickListener(v -> toggleSsh());
-    LinearLayout stateRow = row("SSH 服务（端口 " + TerminalService.SSH_PORT + "）", sshButton);
-    sshState = subtitle(stateRow);
-    stateRow.setOnClickListener(v -> toggleSsh());
-    list.addView(stateRow);
-
-    Button copy = actionButton();
-    copy.setText("复制");
-    copy.setTextColor(Theme.ACCENT);
-    copy.setOnClickListener(v -> copySshCommand());
-    LinearLayout commandRow = row("连接命令", copy);
-    sshCommand = subtitle(commandRow);
-    sshCommand.setTypeface(Typeface.MONOSPACE);
-    sshCommand.setTextIsSelectable(true);
-    commandRow.setOnClickListener(v -> copySshCommand());
-    list.addView(commandRow);
-
-    LinearLayout keysRow = row("添加公钥", null);
-    sshKeys = subtitle(keysRow);
-    keysRow.setOnClickListener(v -> addPublicKey());
-    list.addView(keysRow);
-
-    LinearLayout passwordRow = row("设置 root 密码", null);
-    sshPassword = subtitle(passwordRow);
-    passwordRow.setOnClickListener(v -> setRootPassword());
-    list.addView(passwordRow);
-
-    LinearLayout logRow = row("查看 SSH 日志", null);
-    subtitle(logRow).setText("sshd 的启动信息和登录记录");
-    logRow.setOnClickListener(v -> showSshLog());
-    list.addView(logRow);
-
-    TextView note = text(
-        "手机开着代理 VPN 时，局域网可能连不上：VPN 会把 UbuntuBox 的回包也送进隧道。"
-            + "可在 VPN 应用里把 UbuntuBox 加入绕过列表，或开启「绕过局域网」。",
-        12, Theme.TEXT_DIM);
-    note.setPadding(0, dp(4), 0, 0);
-    list.addView(note);
-    updateSshUi();
-
-    buildPermissionSection(list);
-    buildAboutSection(list);
   }
 
   // ---------------------------------------------------------------- 权限与数据
@@ -593,7 +362,7 @@ public class SettingsActivity extends Activity {
 
   private boolean ignoringBatteryOptimizations() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
-    PowerManager power = (PowerManager) getSystemService(Context.POWER_SERVICE);
+    PowerManager power = (PowerManager) getSystemService(android.content.Context.POWER_SERVICE);
     return power != null && power.isIgnoringBatteryOptimizations(getPackageName());
   }
 
@@ -641,6 +410,20 @@ public class SettingsActivity extends Activity {
         .show();
   }
 
+  /** 锁屏后 Doze 会挂起网络，提示把应用加入电池优化白名单，否则仅靠唤醒锁仍可能断连。 */
+  boolean maybeWarnBatteryOptimization() {
+    if (isFinishing() || ignoringBatteryOptimizations()) return false;
+    new AlertDialog.Builder(this)
+        .setTitle("锁屏后保持 SSH 连接")
+        .setMessage(
+            "Android 会在锁屏后休眠 CPU 并限制后台网络，SSH 可能因此断开。"
+                + "建议把 UbuntuBox 加入电池优化白名单。")
+        .setNegativeButton("稍后", null)
+        .setPositiveButton("去设置", (dialog, which) -> requestIgnoreBatteryOptimizations())
+        .show();
+    return true;
+  }
+
   // ---------------------------------------------------------------- 关于
 
   private void buildAboutSection(LinearLayout list) {
@@ -672,258 +455,6 @@ public class SettingsActivity extends Activity {
     } catch (Exception error) {
       Toast.makeText(this, "无法打开链接：" + url, Toast.LENGTH_LONG).show();
     }
-  }
-
-  private void updateSshUi() {
-    if (sshButton == null) return;
-    boolean running = service != null && service.isSshRunning();
-    if (!sshInstalled) {
-      sshState.setText("未安装 openssh-server");
-      sshButton.setText("安装");
-      sshButton.setTextColor(Theme.ACCENT);
-    } else if (running) {
-      sshState.setText("运行中");
-      sshButton.setText("停止");
-      sshButton.setTextColor(Theme.DANGER);
-    } else {
-      sshState.setText("已停止");
-      sshButton.setText("启动");
-      sshButton.setTextColor(Theme.ACCENT);
-    }
-    List<String> addresses = lanAddresses();
-    StringBuilder commands = new StringBuilder();
-    for (String address : addresses) {
-      if (commands.length() > 0) commands.append('\n');
-      commands.append(sshCommandFor(address));
-    }
-    sshCommand.setText(addresses.isEmpty() ? "未连接 Wi-Fi，暂无局域网地址" : commands);
-    sshKeys.setText(sshKeyCount > 0
-        ? "已有 " + sshKeyCount + " 个公钥（/root/.ssh/authorized_keys）"
-        : "粘贴电脑上的 ~/.ssh/id_ed25519.pub，用公钥免密登录（推荐）");
-    sshPassword.setText(sshHasPassword ? "已设置，可用密码登录" : "未设置，只能用公钥登录");
-  }
-
-  private static String sshCommandFor(String address) {
-    return "ssh root@" + address + " -p " + TerminalService.SSH_PORT;
-  }
-
-  /** Wi-Fi / 以太网 / 热点上的 IPv4 地址，不含蜂窝和 VPN 隧道。 */
-  private static List<String> lanAddresses() {
-    List<String> result = new ArrayList<>();
-    try {
-      for (java.net.NetworkInterface nif :
-          java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
-        String name = nif.getName();
-        if (!nif.isUp() || nif.isLoopback()
-            || !(name.startsWith("wlan") || name.startsWith("eth") || name.startsWith("ap")
-                || name.startsWith("swlan") || name.startsWith("rndis") || name.startsWith("usb")))
-          continue;
-        for (java.net.InetAddress address : java.util.Collections.list(nif.getInetAddresses()))
-          if (address instanceof java.net.Inet4Address) result.add(address.getHostAddress());
-      }
-    } catch (java.net.SocketException ignored) {
-      // 没有网络接口时返回空列表
-    }
-    return result;
-  }
-
-  private void toggleSsh() {
-    // 按钮和整行都可点击，启停进行中时忽略重复点击
-    if (!sshButton.isEnabled()) return;
-    if (!sshInstalled) {
-      runInTerminal("安装 SSH 服务", "ubox-install apt openssh-server");
-      return;
-    }
-    TerminalService bound = service;
-    if (bound == null) return;
-    sshButton.setEnabled(false);
-    if (bound.isSshRunning()) {
-      sshState.setText("停止中…");
-      Async.run(this, "settings-ssh-stop",
-          () -> {
-            boolean freed = bound.stopSsh();
-            return freed;
-          },
-          freed -> {
-            sshButton.setEnabled(true);
-            updateSshUi();
-            if (!freed)
-              Toast.makeText(this,
-                  "端口 " + TerminalService.SSH_PORT + " 仍被其他程序占用", Toast.LENGTH_LONG)
-                  .show();
-          },
-          error -> {
-            sshButton.setEnabled(true);
-            updateSshUi();
-          });
-      return;
-    }
-    sshState.setText("启动中…");
-    Async.run(this, "settings-ssh-start",
-        () -> {
-          bound.startSsh();
-          return null;
-        },
-        ignored -> {
-          sshButton.setEnabled(true);
-          // sshd 启动需要一两秒，之后检查它是否还活着
-          sshState.setText("启动中…");
-          sshState.postDelayed(
-              () -> {
-                updateSshUi();
-                if (service != null && !service.isSshRunning()) {
-                  showSshLog();
-                } else {
-                  boolean warned = maybeWarnBatteryOptimization();
-                  if (!warned && sshKeyCount == 0 && !sshHasPassword)
-                    Toast.makeText(this, "SSH 已启动，请先添加公钥或设置密码", Toast.LENGTH_LONG)
-                        .show();
-                }
-              },
-              2500);
-        },
-        error -> {
-          sshButton.setEnabled(true);
-          updateSshUi();
-          Toast.makeText(this, "启动失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
-        });
-  }
-
-  /** 锁屏后 Doze 会挂起网络，提示把应用加入电池优化白名单，否则仅靠唤醒锁仍可能断连。 */
-  private boolean maybeWarnBatteryOptimization() {
-    if (isFinishing() || ignoringBatteryOptimizations()) return false;
-    new AlertDialog.Builder(this)
-        .setTitle("锁屏后保持 SSH 连接")
-        .setMessage(
-            "Android 会在锁屏后休眠 CPU 并限制后台网络，SSH 可能因此断开。"
-                + "建议把 UbuntuBox 加入电池优化白名单。")
-        .setNegativeButton("稍后", null)
-        .setPositiveButton("去设置", (dialog, which) -> requestIgnoreBatteryOptimizations())
-        .show();
-    return true;
-  }
-
-  private void copySshCommand() {
-    List<String> addresses = lanAddresses();
-    if (addresses.isEmpty()) {
-      Toast.makeText(this, "未连接 Wi-Fi", Toast.LENGTH_SHORT).show();
-      return;
-    }
-    String command = sshCommandFor(addresses.get(0));
-    getSystemService(android.content.ClipboardManager.class)
-        .setPrimaryClip(android.content.ClipData.newPlainText("ssh", command));
-    Toast.makeText(this, "已复制：" + command, Toast.LENGTH_SHORT).show();
-  }
-
-  private void addPublicKey() {
-    android.widget.EditText input = new android.widget.EditText(this);
-    input.setHint("ssh-ed25519 AAAA... user@host");
-    input.setTypeface(Typeface.MONOSPACE);
-    input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-    input.setMinLines(3);
-    android.content.ClipData clip =
-        getSystemService(android.content.ClipboardManager.class).getPrimaryClip();
-    if (clip != null && clip.getItemCount() > 0) {
-      CharSequence copied = clip.getItemAt(0).coerceToText(this);
-      if (copied != null && copied.toString().trim().matches("^(ssh-|ecdsa-|sk-)\\S+ \\S+.*"))
-        input.setText(copied.toString().trim());
-    }
-    new AlertDialog.Builder(this)
-        .setTitle("添加公钥")
-        .setMessage("在电脑上运行 cat ~/.ssh/id_ed25519.pub，把输出粘贴到这里（每行一个）。")
-        .setView(input)
-        .setNegativeButton("取消", null)
-        .setPositiveButton("添加", (d, w) -> savePublicKeys(input.getText().toString()))
-        .show();
-  }
-
-  private void savePublicKeys(String text) {
-    StringBuilder keys = new StringBuilder();
-    for (String line : text.split("\n")) {
-      line = line.trim();
-      if (line.matches("^(ssh-(ed25519|rsa|dss)|ecdsa-sha2-\\S+|sk-\\S+) \\S+.*"))
-        keys.append(line).append('\n');
-    }
-    if (keys.length() == 0) {
-      Toast.makeText(this, "没有识别到公钥（应以 ssh-ed25519 / ssh-rsa / ecdsa- 开头）", Toast.LENGTH_LONG).show();
-      return;
-    }
-    java.io.File ssh = new java.io.File(new Rootfs(this).rootfs, "root/.ssh");
-    java.io.File file = new java.io.File(ssh, "authorized_keys");
-    try {
-      ssh.mkdirs();
-      android.system.Os.chmod(ssh.getAbsolutePath(), 0700);
-      try (java.io.FileOutputStream out = new java.io.FileOutputStream(file, true)) {
-        out.write(keys.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-      }
-      android.system.Os.chmod(file.getAbsolutePath(), 0600);
-      Toast.makeText(this, "已添加", Toast.LENGTH_SHORT).show();
-    } catch (java.io.IOException | android.system.ErrnoException error) {
-      Toast.makeText(this, "写入失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
-    }
-    refreshStatus();
-  }
-
-  private void setRootPassword() {
-    android.widget.EditText input = new android.widget.EditText(this);
-    input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
-        | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-    input.setHint("至少 6 位");
-    new AlertDialog.Builder(this)
-        .setTitle("设置 root 密码")
-        .setMessage("设置后可以用 ssh 密码登录，同一局域网内的设备都能尝试连接，请使用强密码。")
-        .setView(input)
-        .setNegativeButton("取消", null)
-        .setPositiveButton("保存", (d, w) -> savePassword(input.getText().toString()))
-        .show();
-  }
-
-  private void savePassword(String password) {
-    if (password.length() < 6 || password.contains("\n") || password.contains(":")) {
-      Toast.makeText(this, "密码至少 6 位，且不能包含冒号或换行", Toast.LENGTH_LONG).show();
-      return;
-    }
-    // base64 传入，避免密码中的特殊字符被 shell 解释
-    String encoded = android.util.Base64.encodeToString(
-        ("root:" + password).getBytes(java.nio.charset.StandardCharsets.UTF_8),
-        android.util.Base64.NO_WRAP);
-    Async.run(this, "settings-password",
-        () -> UbuntuProcess.runScript(this,
-            "printf %s " + encoded + " | base64 -d | chpasswd && echo ok",
-            UbuntuProcess.timeoutMs(20)),
-        output -> {
-          Toast.makeText(this,
-              output.trim().endsWith("ok") ? "密码已设置" : "设置失败：" + output.trim(),
-              Toast.LENGTH_LONG).show();
-          refreshStatus();
-        },
-        error -> {
-          Toast.makeText(this, "设置失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
-          refreshStatus();
-        });
-  }
-
-  private void showSshLog() {
-    String log = "";
-    if (service != null) {
-      java.io.File file = service.sshLog();
-      try (java.io.RandomAccessFile in = new java.io.RandomAccessFile(file, "r")) {
-        long start = Math.max(0, in.length() - 8192);
-        byte[] bytes = new byte[(int) (in.length() - start)];
-        in.seek(start);
-        in.readFully(bytes);
-        log = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
-      } catch (java.io.IOException missing) {
-        log = "";
-      }
-    }
-    TextView view = text(log.isEmpty() ? "（暂无日志）" : log, 11, Theme.TEXT);
-    view.setTypeface(Typeface.MONOSPACE);
-    view.setTextIsSelectable(true);
-    view.setPadding(dp(16), dp(8), dp(16), dp(8));
-    ScrollView scroll = new ScrollView(this);
-    scroll.addView(view);
-    new AlertDialog.Builder(this).setTitle("SSH 日志").setView(scroll).setPositiveButton("关闭", null).show();
   }
 
   private TextView subtitle(LinearLayout row) {
