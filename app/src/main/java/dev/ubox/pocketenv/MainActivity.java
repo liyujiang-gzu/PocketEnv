@@ -46,6 +46,8 @@ import java.util.List;
 public class MainActivity extends Activity {
   private static final String TAG = "PocketEnv";
   private static final int REQUEST_SETTINGS = 2;
+  /** 第二行单字符符号键额外权重：估算宽度 10，加宽到 14，降低相邻键误触。 */
+  private static final float SYMBOL_EXTRA_WEIGHT = 4f;
 
   private TerminalView terminalView;
   private View installPanel, extraKeysScroll;
@@ -416,7 +418,8 @@ public class MainActivity extends Activity {
     addKey(row1, "→", v -> sendKey(KeyEvent.KEYCODE_DPAD_RIGHT));
 
     for (String symbol : new String[] {"-", "/", "|", "~", "*", "$", "&"})
-      addKey(row2, symbol, v -> terminalView.inputCodePoint(symbol.codePointAt(0), false, false));
+      addKey(row2, symbol, SYMBOL_EXTRA_WEIGHT,
+          v -> terminalView.inputCodePoint(symbol.codePointAt(0), false, false));
     addKey(row2, "HOME", v -> sendKey(KeyEvent.KEYCODE_MOVE_HOME));
     addKey(row2, "END", v -> sendKey(KeyEvent.KEYCODE_MOVE_END));
     addKey(row2, "PGUP", v -> sendKey(KeyEvent.KEYCODE_PAGE_UP));
@@ -425,6 +428,12 @@ public class MainActivity extends Activity {
   }
 
   private Button addKey(LinearLayout row, String label, View.OnClickListener listener) {
+    return addKey(row, label, 0f, listener);
+  }
+
+  /** extraWeight 在标签估算宽度之外额外加宽，用于避免相邻的单字符符号键太窄而误触。 */
+  private Button addKey(LinearLayout row, String label, float extraWeight,
+      View.OnClickListener listener) {
     Button button = new Button(this, null, 0, android.R.style.Widget_DeviceDefault_Button_Borderless);
     button.setText(label);
     button.setAllCaps(false);
@@ -439,7 +448,7 @@ public class MainActivity extends Activity {
     button.setOnClickListener(listener);
     // 按标签所需宽度分配权重：窄屏下 SHIFT/HOME 等长标签不被裁剪，符号键相应收窄。
     row.addView(button, new LinearLayout.LayoutParams(
-        0, LinearLayout.LayoutParams.MATCH_PARENT, keyWeight(label)));
+        0, LinearLayout.LayoutParams.MATCH_PARENT, keyWeight(label) + extraWeight));
     return button;
   }
 
