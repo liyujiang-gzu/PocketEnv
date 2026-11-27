@@ -1,6 +1,5 @@
 package dev.ubox.app;
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -29,7 +28,6 @@ import java.util.List;
  * 通过 {@link #updateStatus} 推入；服务绑定对象通过 {@link #bind} 注入。
  */
 final class SshSection {
-  private final Activity activity;
   private final SettingsActivity host;
 
   private Button sshButton;
@@ -39,8 +37,7 @@ final class SshSection {
   private int keyCount;
   private boolean hasPassword;
 
-  SshSection(Activity activity, SettingsActivity host) {
-    this.activity = activity;
+  SshSection(SettingsActivity host) {
     this.host = host;
   }
 
@@ -169,13 +166,13 @@ final class SshSection {
     sshButton.setEnabled(false);
     if (bound.isSshRunning()) {
       sshState.setText("停止中…");
-      Async.run(activity, "settings-ssh-stop",
+      Async.run(host, "settings-ssh-stop",
           bound::stopSsh,
           freed -> {
             sshButton.setEnabled(true);
             updateUi();
             if (!freed)
-              Toast.makeText(activity,
+              Toast.makeText(host,
                   "端口 " + TerminalService.SSH_PORT + " 仍被其他程序占用", Toast.LENGTH_LONG)
                   .show();
           },
@@ -186,7 +183,7 @@ final class SshSection {
       return;
     }
     sshState.setText("启动中…");
-    Async.run(activity, "settings-ssh-start",
+    Async.run(host, "settings-ssh-start",
         () -> {
           bound.startSsh();
           return null;
@@ -202,7 +199,7 @@ final class SshSection {
             } else {
               boolean warned = host.maybeWarnBatteryOptimization();
               if (!warned && keyCount == 0 && !hasPassword)
-                Toast.makeText(activity, "SSH 已启动，请先添加公钥或设置密码", Toast.LENGTH_LONG)
+                Toast.makeText(host, "SSH 已启动，请先添加公钥或设置密码", Toast.LENGTH_LONG)
                     .show();
             }
           }, 2500);
@@ -210,35 +207,35 @@ final class SshSection {
         error -> {
           sshButton.setEnabled(true);
           updateUi();
-          Toast.makeText(activity, "启动失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
+          Toast.makeText(host, "启动失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
         });
   }
 
   private void copyCommand() {
     List<String> addresses = lanAddresses();
     if (addresses.isEmpty()) {
-      Toast.makeText(activity, "未连接 Wi-Fi", Toast.LENGTH_SHORT).show();
+      Toast.makeText(host, "未连接 Wi-Fi", Toast.LENGTH_SHORT).show();
       return;
     }
     String command = commandFor(addresses.get(0));
-    activity.getSystemService(ClipboardManager.class)
+    host.getSystemService(ClipboardManager.class)
         .setPrimaryClip(ClipData.newPlainText("ssh", command));
-    Toast.makeText(activity, "已复制：" + command, Toast.LENGTH_SHORT).show();
+    Toast.makeText(host, "已复制：" + command, Toast.LENGTH_SHORT).show();
   }
 
   private void addPublicKey() {
-    EditText input = new EditText(activity);
+    EditText input = new EditText(host);
     input.setHint("ssh-ed25519 AAAA... user@host");
     input.setTypeface(Typeface.MONOSPACE);
     input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
     input.setMinLines(3);
-    ClipData clip = activity.getSystemService(ClipboardManager.class).getPrimaryClip();
+    ClipData clip = host.getSystemService(ClipboardManager.class).getPrimaryClip();
     if (clip != null && clip.getItemCount() > 0) {
-      CharSequence copied = clip.getItemAt(0).coerceToText(activity);
+      CharSequence copied = clip.getItemAt(0).coerceToText(host);
       if (copied != null && copied.toString().trim().matches("^(ssh-|ecdsa-|sk-)\\S+ \\S+.*"))
         input.setText(copied.toString().trim());
     }
-    new AlertDialog.Builder(activity)
+    new AlertDialog.Builder(host)
         .setTitle("添加公钥")
         .setMessage("在电脑上运行 cat ~/.ssh/id_ed25519.pub，把输出粘贴到这里（每行一个）。")
         .setView(input)
@@ -255,11 +252,11 @@ final class SshSection {
         keys.append(line).append('\n');
     }
     if (keys.length() == 0) {
-      Toast.makeText(activity, "没有识别到公钥（应以 ssh-ed25519 / ssh-rsa / ecdsa- 开头）",
+      Toast.makeText(host, "没有识别到公钥（应以 ssh-ed25519 / ssh-rsa / ecdsa- 开头）",
           Toast.LENGTH_LONG).show();
       return;
     }
-    File ssh = new File(new Rootfs(activity).rootfs, "root/.ssh");
+    File ssh = new File(new Rootfs(host).rootfs, "root/.ssh");
     File file = new File(ssh, "authorized_keys");
     try {
       ssh.mkdirs();
@@ -268,19 +265,19 @@ final class SshSection {
         out.write(keys.toString().getBytes(StandardCharsets.UTF_8));
       }
       android.system.Os.chmod(file.getAbsolutePath(), 0600);
-      Toast.makeText(activity, "已添加", Toast.LENGTH_SHORT).show();
+      Toast.makeText(host, "已添加", Toast.LENGTH_SHORT).show();
     } catch (IOException | android.system.ErrnoException error) {
-      Toast.makeText(activity, "写入失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
+      Toast.makeText(host, "写入失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
     }
     host.refreshStatus();
   }
 
   private void setRootPassword() {
-    EditText input = new EditText(activity);
+    EditText input = new EditText(host);
     input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
         | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
     input.setHint("至少 6 位");
-    new AlertDialog.Builder(activity)
+    new AlertDialog.Builder(host)
         .setTitle("设置 root 密码")
         .setMessage("设置后可以用 ssh 密码登录，同一局域网内的设备都能尝试连接，请使用强密码。")
         .setView(input)
@@ -291,25 +288,25 @@ final class SshSection {
 
   private void savePassword(String password) {
     if (password.length() < 6 || password.contains("\n") || password.contains(":")) {
-      Toast.makeText(activity, "密码至少 6 位，且不能包含冒号或换行", Toast.LENGTH_LONG).show();
+      Toast.makeText(host, "密码至少 6 位，且不能包含冒号或换行", Toast.LENGTH_LONG).show();
       return;
     }
     // base64 传入，避免密码中的特殊字符被 shell 解释
     String encoded = android.util.Base64.encodeToString(
         ("root:" + password).getBytes(StandardCharsets.UTF_8),
         android.util.Base64.NO_WRAP);
-    Async.run(activity, "settings-password",
-        () -> UbuntuProcess.runScript(activity,
+    Async.run(host, "settings-password",
+        () -> UbuntuProcess.runScript(host,
             "printf %s " + encoded + " | base64 -d | chpasswd && echo ok",
             UbuntuProcess.timeoutMs(20)),
         output -> {
-          Toast.makeText(activity,
+          Toast.makeText(host,
               output.trim().endsWith("ok") ? "密码已设置" : "设置失败：" + output.trim(),
               Toast.LENGTH_LONG).show();
           host.refreshStatus();
         },
         error -> {
-          Toast.makeText(activity, "设置失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
+          Toast.makeText(host, "设置失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
           host.refreshStatus();
         });
   }
@@ -332,9 +329,9 @@ final class SshSection {
     view.setTypeface(Typeface.MONOSPACE);
     view.setTextIsSelectable(true);
     view.setPadding(dp(16), dp(8), dp(16), dp(8));
-    ScrollView scroll = new ScrollView(activity);
+    ScrollView scroll = new ScrollView(host);
     scroll.addView(view);
-    new AlertDialog.Builder(activity)
+    new AlertDialog.Builder(host)
         .setTitle("SSH 日志").setView(scroll).setPositiveButton("关闭", null).show();
   }
 
@@ -343,12 +340,12 @@ final class SshSection {
   private TextView header(String title) {
     TextView view = text(title, 13, Theme.ACCENT);
     view.setTypeface(Typeface.DEFAULT_BOLD);
-    view.setPadding(0, UiViews.dp(activity, 24), 0, UiViews.dp(activity, 4));
+    view.setPadding(0, UiViews.dp(host, 24), 0, UiViews.dp(host, 4));
     return view;
   }
 
   private LinearLayout row(String title, View action) {
-    return UiViews.row(activity, title, action);
+    return UiViews.row(host, title, action);
   }
 
   private TextView subtitle(LinearLayout row) {
@@ -356,7 +353,7 @@ final class SshSection {
   }
 
   private Button actionButton() {
-    Button button = new Button(activity, null, 0,
+    Button button = new Button(host, null, 0,
         android.R.style.Widget_DeviceDefault_Button_Borderless);
     button.setAllCaps(false);
     button.setText("…");
@@ -365,10 +362,10 @@ final class SshSection {
   }
 
   private TextView text(String value, int sp, int color) {
-    return UiViews.text(activity, value, sp, color);
+    return UiViews.text(host, value, sp, color);
   }
 
   private int dp(int value) {
-    return UiViews.dp(activity, value);
+    return UiViews.dp(host, value);
   }
 }

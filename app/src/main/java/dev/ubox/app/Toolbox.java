@@ -1,7 +1,5 @@
 package dev.ubox.app;
 
-import java.util.StringJoiner;
-
 /**
  * 设置页「软件安装」目录：全部工具的声明与安装/卸载/检测命令生成。
  *
@@ -207,12 +205,5 @@ final class Toolbox {
     }
     return result;
   }
-
-  /** 生成不重复的测试 id，避免与真实工具冲突。 */
-  static String debugIds() {
-    StringJoiner ids = new StringJoiner(",");
-    for (Section section : SECTIONS)
-      for (Tool tool : section.tools()) ids.add(tool.id());
-    return ids.toString();
-  }
 }
+

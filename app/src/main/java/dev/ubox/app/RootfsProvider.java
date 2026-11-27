@@ -295,6 +295,11 @@ public final class RootfsProvider extends DocumentsProvider {
     return "root".equals(documentId) || documentId.startsWith("root/");
   }
 
+  /**
+   * 复用 Rootfs.deleteRecursively，避免两套递归删除实现漂移。
+   * 与旧实现的两点边界差异（均为改善）：目标不存在时静默返回而非抛错；
+   * 删除前会放开只读目录的写/执行位，SAF 客户端传入的合法路径本就可写。
+   */
   private static void deleteTree(File file) throws FileNotFoundException {
     try {
       Rootfs.deleteRecursively(file);

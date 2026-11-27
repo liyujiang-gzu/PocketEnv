@@ -39,21 +39,23 @@ final class MirrorOption {
    * @param title     弹窗标题，如「选择 APT 源」
    * @param options   可选源列表
    * @param suffix    成功提示的补充说明（可为空串），如「，下次安装时会自动 apt update」
-   * @param onChanged 切换成功后的刷新回调
+   * @param onApplying 选中后、切换开始前的回调（调用方把对应行设为「切换中…」）
+   * @param onChanged 切换结束后（无论成败）的刷新回调
    */
   static void choose(Activity activity, String title, MirrorOption[] options, String suffix,
-      Runnable onChanged) {
+      Runnable onApplying, Runnable onChanged) {
     String[] labels = new String[options.length];
     for (int i = 0; i < options.length; i++) labels[i] = options[i].dialogLabel();
     new AlertDialog.Builder(activity)
         .setTitle(title)
         .setItems(labels, (dialog, which) ->
-            apply(activity, options[which], suffix, onChanged))
+            apply(activity, options[which], suffix, onApplying, onChanged))
         .show();
   }
 
   private static void apply(Activity activity, MirrorOption option, String suffix,
-      Runnable onChanged) {
+      Runnable onApplying, Runnable onChanged) {
+    onApplying.run();
     Async.run(activity, "settings-mirror-" + option.id,
         () -> UbuntuProcess.runScript(activity, "ubox-" + option.script + " " + option.id,
             UbuntuProcess.timeoutMs(15)),
@@ -61,8 +63,11 @@ final class MirrorOption {
           Toast.makeText(activity, "已切换到" + option.label + suffix, Toast.LENGTH_LONG).show();
           onChanged.run();
         },
-        error -> Toast.makeText(activity, "切换失败：" + error.getMessage(), Toast.LENGTH_LONG)
-            .show());
+        error -> {
+          Toast.makeText(activity, "切换失败：" + error.getMessage(), Toast.LENGTH_LONG)
+              .show();
+          onChanged.run();
+        });
   }
 
   /** 按包含关系匹配选项（域名型源，如 APT），未匹配时返回原值。 */

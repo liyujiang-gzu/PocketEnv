@@ -110,25 +110,25 @@ public class SettingsActivity extends Activity {
 
     list.addView(header("软件源"));
     LinearLayout mirrorRow = row("APT 源", null);
-    mirrorValue = (TextView) ((LinearLayout) mirrorRow.getChildAt(0)).getChildAt(1);
+    mirrorValue = subtitle(mirrorRow);
     mirrorValue.setText("读取中…");
     mirrorRow.setOnClickListener(v -> chooseMirror());
     list.addView(mirrorRow);
 
     LinearLayout npmRow = row("NPM 源", null);
-    npmRegistryValue = (TextView) ((LinearLayout) npmRow.getChildAt(0)).getChildAt(1);
+    npmRegistryValue = subtitle(npmRow);
     npmRegistryValue.setText("读取中…");
     npmRow.setOnClickListener(v -> chooseNpmRegistry());
     list.addView(npmRow);
 
     LinearLayout pypiRow = row("PyPI 源", null);
-    pypiMirrorValue = (TextView) ((LinearLayout) pypiRow.getChildAt(0)).getChildAt(1);
+    pypiMirrorValue = subtitle(pypiRow);
     pypiMirrorValue.setText("读取中…");
     pypiRow.setOnClickListener(v -> choosePypiMirror());
     list.addView(pypiRow);
 
     LinearLayout goRow = row("GO 源", null);
-    goProxyValue = (TextView) ((LinearLayout) goRow.getChildAt(0)).getChildAt(1);
+    goProxyValue = subtitle(goRow);
     goProxyValue.setText("读取中…");
     goRow.setOnClickListener(v -> chooseGoProxy());
     list.addView(goRow);
@@ -140,14 +140,17 @@ public class SettingsActivity extends Activity {
         action.setOnClickListener(v -> onToolClicked(tool));
         buttons.put(tool.id(), action);
         LinearLayout row = row(tool.title(), action);
-        ((TextView) ((LinearLayout) row.getChildAt(0)).getChildAt(1)).setText(tool.summary());
+        subtitle(row).setText(tool.summary());
         row.setOnClickListener(v -> onToolClicked(tool));
         list.addView(row);
       }
     }
 
-    sshSection = new SshSection(this, this);
+    sshSection = new SshSection(this);
     sshSection.build(list);
+
+    buildPermissionSection(list);
+    buildAboutSection(list);
 
     Toolbar toolbar = new Toolbar(this);
     toolbar.setBackgroundColor(Theme.SURFACE);
@@ -232,6 +235,12 @@ public class SettingsActivity extends Activity {
       else if (key.equals("sshkeys")) keys = parseInt(value);
       else result.put(key, value.equals("1"));
     }
+    applyStatus(result, mirror, npmRegistry, pypiMirror, goProxy, keys);
+  }
+
+  /** 按解析结果刷新各分区。包内可见，便于单独验证解析逻辑。 */
+  void applyStatus(Map<String, Boolean> result, String mirror, String npmRegistry,
+      String pypiMirror, String goProxy, int keys) {
     installed.clear();
     installed.putAll(result);
     mirrorValue.setText(describeMirror(mirror));
@@ -261,7 +270,7 @@ public class SettingsActivity extends Activity {
 
   private void chooseMirror() {
     MirrorOption.choose(this, "选择 APT 源", MIRRORS, "，下次安装时会自动 apt update",
-        this::refreshStatus);
+        () -> mirrorValue.setText("切换中…"), this::refreshStatus);
   }
 
   private static String describeNpmRegistry(String url) {
@@ -269,7 +278,8 @@ public class SettingsActivity extends Activity {
   }
 
   private void chooseNpmRegistry() {
-    MirrorOption.choose(this, "选择 NPM 源", NPM_REGISTRIES, "", this::refreshStatus);
+    MirrorOption.choose(this, "选择 NPM 源", NPM_REGISTRIES, "",
+        () -> npmRegistryValue.setText("切换中…"), this::refreshStatus);
   }
 
   private static String describePypiMirror(String url) {
@@ -278,7 +288,7 @@ public class SettingsActivity extends Activity {
 
   private void choosePypiMirror() {
     MirrorOption.choose(this, "选择 PyPI 源（pip + uv）", PYPI_MIRRORS, "（pip + uv）",
-        this::refreshStatus);
+        () -> pypiMirrorValue.setText("切换中…"), this::refreshStatus);
   }
 
   private static String describeGoProxy(String url) {
@@ -287,7 +297,7 @@ public class SettingsActivity extends Activity {
 
   private void chooseGoProxy() {
     MirrorOption.choose(this, "选择 GO 源（Go 模块代理）", GO_PROXIES, "（GOPROXY）",
-        this::refreshStatus);
+        () -> goProxyValue.setText("切换中…"), this::refreshStatus);
   }
 
   private void onToolClicked(Toolbox.Tool tool) {
