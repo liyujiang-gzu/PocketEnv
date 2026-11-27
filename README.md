@@ -1,4 +1,4 @@
-# UbuntuBox - Pocket Develop Environment
+# PocketEnv - Development Environment in Your Pocket
 
 口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04 (arm64) ，免 root、免 Termux，内置TypeScript/Python/Go/Java/C等语言编译环境和OpenCode/Codex/CodeBuddy/QwenCode等编程智能体，Ubuntu与Android文件系统互通。
 
@@ -6,14 +6,14 @@
 
 ## 功能特性
 
-- 完整 Ubuntu 24.04 (arm64) 环境运行在 Android 上
-- 无需 root 权限
-- 无需安装 Termux
-- 支持 Ubuntu 系统访问安卓文件系统（挂载 /sdcard ）
-- **支持安卓文件管理器直接访问 Ubuntu 文件系统**
-- 内置 SSH 服务，方便远程访问
+- 完整 Ubuntu 24.04 环境运行在 Android 上
+- 无需 root 权限，无需安装 Termux
+- 支持 Ubuntu 系统访问安卓文件系统
+- 支持安卓文件管理器直接访问 Ubuntu 文件系统
+- 内置 SSH 服务，方便局域网远程访问
 - 支持切换中国大陆友好的软件源（APT、NPM、PyPI 等）
-- 预置 Git、Node.js 22、Python 3 等开发环境及多种编程智能体的快捷安装支持
+- 预置 Git、Node.js 22、Python 3、OpenJDK 17、Maven 3、Gradle 9、Android SDK 36、Go、C/C++ 等开发环境
+- 预置 OpenCode、Claude Code、Codex、CodeBuddy、QwenCode 等编程智能体
 
 ## 构建
 
@@ -30,20 +30,6 @@
 - Android SDK 36
 - NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`，。注意法律合规，若修改了需按 Apache 2.0 协议进行说明）
 
-构建产物：`app/build/outputs/apk/debug/app-debug.apk`
-
-## 项目结构
-
-| 文件 | 说明 |
-|------|------|
-| `Rootfs.java` | 首次启动时解压 rootfs 到应用内部存储，写入 DNS、apt、Android 补充组等配置；每次启动时刷新辅助脚本 |
-| `RootfsProvider.java` | SAF DocumentsProvider，将 rootfs 暴露为文件管理器里的「UbuntuBox」存储；除 `/root` 外只读 |
-| `Proot.java` | 组装 proot 命令行，自动检测是否需要 `--link2symlink`，Android 无权读取某些文件时绑定假数据 |
-| `TerminalService.java` | 前台服务，持有所有终端会话，切到后台后继续运行；支持保持 CPU 唤醒 |
-| `MainActivity.java` | 安装进度界面、终端界面、额外按键（ESC/TAB/CTRL/ALT/方向键等）、多会话管理 |
-| `SettingsActivity.java` | 设置页面，支持换源、安装推荐软件、SSH 管理等功能 |
-| `assets/guest/` | 安装到 Ubuntu 内的辅助脚本 |
-
 ## 使用方法
 
 ### 首次启动
@@ -54,7 +40,7 @@
 
 ### 在文件管理器里访问 Ubuntu
 
-菜单 →「授权访问 ubuntu」会打开系统文件管理器并定位到 rootfs。也可以在任意支持 SAF 的文件管理器（系统「文件」、MT 管理器等）的存储列表里找到「UbuntuBox」，浏览和复制文件。
+可以在任意支持 SAF 的文件管理器（系统「文件」、MT 管理器等）的存储列表里找到「PocketEnv」或「口袋环境」，浏览和复制文件。
 
 - 除 `/root` 外都是只读的
 - `/root` 可直接新建、修改、删除和改名，适合把文件拷进拷出
@@ -67,7 +53,7 @@
 - 公钥认证
 - 查看局域网 IP 地址
 
-开启 SSH 后会自动持有 CPU 唤醒锁和 Wi-Fi 锁，锁屏后也能继续连接。首次开启时建议按提示把应用加入电池优化白名单，否则 Android 的 Doze 仍可能挂起网络。
+开启 SSH 后会自动持有 CPU 唤醒锁和 Wi-Fi 锁，锁屏后也能继续连接。首次开启时建议在设置里开启忽略电池优化，否则 Android 的 Doze 仍可能挂起网络，导致锁屏/熄屏后 SSH 断开连接。
 
 ### 额外按键
 
