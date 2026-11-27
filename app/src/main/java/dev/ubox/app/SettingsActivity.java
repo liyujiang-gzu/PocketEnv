@@ -679,7 +679,7 @@ public class SettingsActivity extends Activity {
   // ---------------------------------------------------------------- Ubuntu 环境
 
   private void buildEnvironmentSection(LinearLayout list) {
-    list.addView(header("数据安全"));
+    list.addView(header("数据存储"));
 
     LinearLayout resetRow = row("重置 Ubuntu 环境", null);
     subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复");

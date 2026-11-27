@@ -275,10 +275,10 @@ public class MainActivity extends Activity {
 
     AlertDialog dialog =
         new AlertDialog.Builder(this)
-            .setTitle("管理会话")
+            .setTitle("会话管理")
             .setView(scroll)
             .setPositiveButton("新建会话", (d, which) -> newSession())
-            .setNegativeButton("关闭", null)
+            .setNegativeButton("取消", null)
             .create();
 
     Runnable[] refresh = new Runnable[1];
