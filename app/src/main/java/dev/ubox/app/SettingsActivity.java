@@ -73,8 +73,10 @@ public class SettingsActivity extends Activity {
         "https://goproxy.cn", "goproxy"),
   };
 
-  /** 项目 Gitee 开源地址，「关于我们」跳转用。 */
+  /** 项目 Gitee 开源地址，软件介绍跳转用。 */
   private static final String GITEE_URL = "https://gitee.com/li_yu_jiang/PocketEnv";
+  /** 项目 GitHub 开源地址，项目源码跳转用。 */
+  private static final String GITHUB_URL = "https://github.com/liyujiang-gzu/PocketEnv";
   /** 意见反馈地址，跳转 Gitee Issues。 */
   private static final String FEEDBACK_URL = "https://gitee.com/li_yu_jiang/PocketEnv/issues";
 
@@ -445,6 +447,12 @@ public class SettingsActivity extends Activity {
     subtitle(introRow).setText("口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04，免 root、免 Termux，内置 TypeScript/Python/Java/Go/C 等语言编译环境和 OpenCode/Codex/CodeBuddy/QwenCode 等编程智能体。");
     introRow.setOnClickListener(v -> openUrl(GITEE_URL));
     list.addView(introRow);
+
+    LinearLayout sourceRow = row("项目源码", null);
+    subtitle(sourceRow).setText("Gitee：https://gitee.com/li_yu_jiang/PocketEnv\n"
+        + "GitHub：https://github.com/liyujiang-gzu/PocketEnv");
+    sourceRow.setOnClickListener(v -> openUrl(GITHUB_URL));
+    list.addView(sourceRow);
 
     LinearLayout feedbackRow = row("意见反馈", null);
     subtitle(feedbackRow).setText("点此在 Gitee 提交问题或建议");
