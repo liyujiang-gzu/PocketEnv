@@ -117,7 +117,8 @@ public class TerminalService extends Service {
   static final String PREFS = "ubox";
   static final String PREF_SSH = "ssh_enabled";
   static final int SSH_PORT = 8022;
-  private Process sshProcess;
+  // 设置页在后台线程启停 SSH，UI 线程读状态，需要 volatile 保证可见性
+  private volatile Process sshProcess;
 
   File sshLog() {
     return new File(new Rootfs(this).base, "sshd.log");
@@ -130,6 +131,11 @@ public class TerminalService extends Service {
   /** 在后台（不占终端会话）运行 sshd，输出写到 sshd.log。 */
   synchronized void startSsh() throws IOException {
     if (isSshRunning()) return;
+    if (isPortListening()) {
+      // 服务重建或应用进程被杀后，上次的 proot/sshd 可能仍占着端口
+      stopSshProcess();
+      if (isPortListening()) throw new IOException("端口 " + SSH_PORT + " 被其他程序占用");
+    }
     Rootfs rootfs = new Rootfs(this);
     rootfs.refreshGuestFiles(this);
     Proot proot = new Proot(this, rootfs);
@@ -149,22 +155,113 @@ public class TerminalService extends Service {
     updateNotification();
   }
 
-  synchronized void stopSsh() {
-    stopSshProcess();
+  /** 停止 sshd；返回 8022 是否已释放，false 表示端口仍被其他程序占用。 */
+  synchronized boolean stopSsh() {
+    boolean freed = stopSshProcess();
     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(PREF_SSH, false).apply();
     updateNotification();
+    return freed;
   }
 
-  private void stopSshProcess() {
-    if (sshProcess == null) return;
-    // proot 带 --kill-on-exit，结束它会连同 sshd 及其子进程一起结束
-    sshProcess.destroy();
-    try {
-      if (!sshProcess.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) sshProcess.destroyForcibly();
-    } catch (InterruptedException interrupted) {
-      Thread.currentThread().interrupt();
-    }
+  /**
+   * 结束 sshd 并等待端口释放。
+   * 只按 sshProcess 句柄结束不够：前台服务重建、应用进程被系统杀掉或 proot 被 SIGKILL 后，
+   * 句柄会丢失或留下孤儿 sshd，端口一直占用，下次启动就会失败，所以再按命令行兜底清理一遍。
+   */
+  private synchronized boolean stopSshProcess() {
+    Process process = sshProcess;
     sshProcess = null;
+    if (process != null) {
+      // proot 带 --kill-on-exit，正常结束会连同 sshd 及其子进程一起结束
+      process.destroy();
+      try {
+        if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) process.destroyForcibly();
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+      }
+    }
+    List<Integer> pids = sshPids();
+    if (pids.isEmpty()) return !isPortListening();
+    signal(pids, android.system.OsConstants.SIGTERM);
+    if (awaitPortFree(1_000)) return true;
+    // proot 被强杀后 guest 里的 sshd 会变成孤儿继续监听，逐个补刀
+    signal(sshPids(), android.system.OsConstants.SIGKILL);
+    return awaitPortFree(500);
+  }
+
+  /** /proc 里命令行含 ubox-sshd（proot 外壳）或 /usr/sbin/sshd -D（guest 内 sshd）的进程。 */
+  private static List<Integer> sshPids() {
+    List<Integer> pids = new ArrayList<>();
+    File[] entries = new File("/proc").listFiles();
+    if (entries == null) return pids;
+    for (File entry : entries) {
+      String name = entry.getName();
+      if (name.isEmpty() || !Character.isDigit(name.charAt(0))) continue;
+      int pid;
+      try {
+        pid = Integer.parseInt(name);
+      } catch (NumberFormatException ignored) {
+        continue;
+      }
+      if (pid == android.os.Process.myPid()) continue;
+      String cmdline = readCmdline(new File(entry, "cmdline"));
+      if (cmdline.contains("ubox-sshd")
+          || (cmdline.contains("/usr/sbin/sshd") && cmdline.contains("-D"))) pids.add(pid);
+    }
+    return pids;
+  }
+
+  private static String readCmdline(File file) {
+    try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+      // proot 的完整命令行（含各 -b 绑定）可能超过 1KB，必须整段读完才能匹配到 ubox-sshd
+      java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+      byte[] chunk = new byte[1024];
+      int read;
+      while ((read = in.read(chunk)) > 0) {
+        buffer.write(chunk, 0, read);
+        if (buffer.size() >= 4096) break;
+      }
+      return new String(buffer.toByteArray(), java.nio.charset.StandardCharsets.UTF_8)
+          .replace('\0', ' ');
+    } catch (IOException unreadable) {
+      return "";
+    }
+  }
+
+  private static void signal(List<Integer> pids, int signal) {
+    for (int pid : pids) {
+      try {
+        android.system.Os.kill(pid, signal);
+      } catch (android.system.ErrnoException gone) {
+        // 进程已退出或不属于本应用
+      }
+    }
+  }
+
+  /** 尝试绑定 8022：绑定失败说明已有进程在监听。 */
+  private static boolean isPortListening() {
+    try (java.net.ServerSocket socket = new java.net.ServerSocket()) {
+      // 避免刚断开的连接处于 TIME_WAIT 时误判端口仍被占用
+      socket.setReuseAddress(true);
+      socket.bind(new java.net.InetSocketAddress("0.0.0.0", SSH_PORT));
+      return false;
+    } catch (IOException inUse) {
+      return true;
+    }
+  }
+
+  private static boolean awaitPortFree(long timeoutMs) {
+    long deadline = System.currentTimeMillis() + timeoutMs;
+    while (System.currentTimeMillis() < deadline) {
+      if (!isPortListening()) return true;
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        return false;
+      }
+    }
+    return !isPortListening();
   }
 
   void setOnExit(Runnable onExit) {
