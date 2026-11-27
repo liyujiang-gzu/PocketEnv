@@ -725,6 +725,15 @@ public class SettingsActivity extends Activity {
     subtitle(licenseRow).setText("查看本应用使用的第三方组件及其许可证");
     licenseRow.setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     list.addView(licenseRow);
+
+    LinearLayout versionRow = row("版本", null);
+    subtitle(versionRow).setText(appVersion());
+    list.addView(versionRow);
+  }
+
+  /** 版本名称 + 内部版本号，来自 Gradle 打包时注入的 BuildConfig 常量。 */
+  private String appVersion() {
+    return BuildConfig.VERSION_NAME + "（内部版本号 " + BuildConfig.VERSION_CODE + "）";
   }
 
   private void openUrl(String url) {

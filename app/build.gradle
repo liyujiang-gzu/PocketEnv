@@ -54,6 +54,11 @@ android {
         noCompress += ['bin']
     }
 
+    buildFeatures {
+        // 生成 BuildConfig.VERSION_NAME / VERSION_CODE，供设置页显示版本
+        buildConfig true
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
