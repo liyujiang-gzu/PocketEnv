@@ -2,7 +2,7 @@
 
 口袋里的开发环境：在 Android 上运行一个完整的 Ubuntu 24.04，免 root、免 Termux，内置 TypeScript/Python/Java/Go/C 等语言编译环境和 OpenCode/Codex/CodeBuddy/QwenCode 等编程智能体。
 
-本项目基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT 许可）重构开发，增加了大量的易用特性。从 1.0.0 版本开始就已完成**自举**，通过自带的 Git + OpenCode 2 + OpenJDK 17 + Gradle 9 + Android SDK 36 完成自身的代码编辑、编译构建、打包安装、真机运行流水线。
+本项目基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT 许可）重构开发，增加了大量的易用特性。从 1.0.0 版本开始就已完成**自举**，通过自带的 OpenCode 2 + OpenJDK 17 + Gradle 9 + Android SDK 36 完成自身的「编辑 → 构建 → 打包 → 安装 → 运行」全流水线。
 
 ## 功能特性
 
@@ -12,8 +12,9 @@
 - 支持安卓文件管理器直接访问 Ubuntu 文件系统
 - 内置 SSH 服务，方便局域网远程访问，锁屏/熄屏不中断
 - 支持切换中国大陆友好的软件源（APT、NPM、PyPI 等）
-- 内置 Git、Node.js 22、Python 3、OpenJDK 17、Maven 3、Gradle 9、Android SDK 36、Go、C/C++ 等开发环境支持
-- 内置 OpenCode、Claude Code、Codex、CodeBuddy、QwenCode 等编程智能体支持
+- 内置 Git、Node.js 22、Python 3、OpenJDK 17、Maven 3、Gradle 9、Android SDK 36、Go、C/C++ 等开发环境
+- 内置 OpenCode、Claude Code、Codex、CodeBuddy、QwenCode 等编程智能体
+- 支持 Ubuntu 系统重置、备份与恢复
 
 ## 构建
 
@@ -27,6 +28,7 @@
 
 **构建要求：**
 - JDK 17
+- Gradle 9
 - Android SDK 36
 - NDK 仅在修改 `native/termux-jni` 时需要（运行 `native/termux-jni/build.sh` 重新生成 `libtermux.so`。注意合规性，若修改了需按上游的 Apache 2.0 协议进行说明）
 
@@ -34,8 +36,8 @@
 
 ### 首次启动
 
-1. 安装 APK 并打开应用
-2. 等待 rootfs 自动解压完成（约 5-10 分钟，视设备性能而定）
+1. 安装 APK（见 GitHub Release）并打开应用
+2. 等待 rootfs 自动解压完成（约 1-5 分钟，视设备性能而定）
 3. 自动进入终端界面
 
 ### 在文件管理器里访问 Ubuntu
