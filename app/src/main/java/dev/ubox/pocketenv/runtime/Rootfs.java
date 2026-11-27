@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.system.ErrnoException;
 import android.system.Os;
+import android.system.StructStat;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -108,6 +109,7 @@ public final class Rootfs {
       chmod((File) directory[0], ((Integer) directory[1] & 07777) | 0700);
 
     configure(staging);
+    writeBaseManifest(context, staging);
     write(new File(staging, MARKER), readAsset(context, "rootfs.version"));
 
     deleteRecursively(rootfs);
@@ -129,6 +131,39 @@ public final class Rootfs {
     File tmpDir = new File(root, "tmp");
     mkdirs(tmpDir);
     chmod(tmpDir, 01777);
+  }
+
+  /**
+   * 记录 Ubuntu Base 基线文件的类型、大小和 mtime，供增量备份识别被改动的 Base 文件。
+   *
+   * <p>旧版本环境没有清单时在下次会话启动前按当前状态补生成；此前对 Base 文件的修改
+   * 无法追溯，会作为新基线，不会进入本次备份。
+   */
+  private void writeBaseManifest(Context context, File root) throws IOException {
+    StringBuilder out = new StringBuilder();
+    Set<String> dirs = new java.util.TreeSet<>();
+    for (String path : readAsset(context, "guest/base-files.txt").split("\n")) {
+      path = path.trim();
+      if (path.isEmpty()) continue;
+      for (int slash = path.indexOf('/'); slash > 0; slash = path.indexOf('/', slash + 1))
+        dirs.add(path.substring(0, slash));
+      try {
+        StructStat stat = Os.lstat(new File(root, path).getAbsolutePath());
+        char type;
+        if (android.system.OsConstants.S_ISDIR(stat.st_mode)) type = 'd';
+        else if (android.system.OsConstants.S_ISLNK(stat.st_mode)) type = 'l';
+        else if (android.system.OsConstants.S_ISREG(stat.st_mode)) type = 'f';
+        else continue;
+        out.append(type).append('\t')
+            .append(type == 'd' ? 0 : stat.st_size).append('\t')
+            .append(type == 'd' ? 0 : stat.st_mtime).append('\t')
+            .append(path).append('\n');
+      } catch (ErrnoException missing) {
+        // 基线清单与当前环境存在版本差异时，个别路径可能不存在
+      }
+    }
+    for (String dir : dirs) out.append("d\t0\t0\t").append(dir).append('\n');
+    write(new File(root, "usr/local/lib/ubox/base-manifest.txt"), out.toString());
   }
 
   /** 把应用进程的补充组写进 /etc/group，否则 bash 会反复提示 cannot find name for group ID。 */
@@ -177,6 +212,8 @@ public final class Rootfs {
     File uboxLib = new File(rootfs, "usr/local/lib/ubox");
     writeAsset(context, "guest/base-files.txt", new File(uboxLib, "base-files.txt"), 0644);
     writeAsset(context, "guest/base-packages.txt", new File(uboxLib, "base-packages.txt"), 0644);
+    // 旧环境升级后补生成基线清单；新环境在 install 时已生成
+    if (!new File(uboxLib, "base-manifest.txt").isFile()) writeBaseManifest(context, rootfs);
     writeAsset(context, "guest/profile.sh", new File(rootfs, "etc/profile.d/ubox.sh"), 0644);
     writeAsset(context, "guest/motd", new File(rootfs, "etc/ubox-motd"), 0644);
     // 授权（如存储）后应用会获得新的补充组，每次都补齐
