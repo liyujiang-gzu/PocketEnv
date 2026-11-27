@@ -679,10 +679,10 @@ public class SettingsActivity extends Activity {
   // ---------------------------------------------------------------- Ubuntu 环境
 
   private void buildEnvironmentSection(LinearLayout list) {
-    list.addView(header("Ubuntu 环境"));
+    list.addView(header("数据安全"));
 
     LinearLayout resetRow = row("重置 Ubuntu 环境", null);
-    subtitle(resetRow).setText("结束所有会话并删除整个环境后重新解压，不可恢复");
+    subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复");
     resetRow.setOnClickListener(v -> confirmReset());
     list.addView(resetRow);
   }
@@ -690,7 +690,7 @@ public class SettingsActivity extends Activity {
   private void confirmReset() {
     new AlertDialog.Builder(this)
         .setTitle("重置 Ubuntu 环境")
-        .setMessage("将结束所有会话并删除整个 Ubuntu 环境（包括 /root 下的所有文件和已安装的软件），然后重新解压。此操作不可恢复。")
+        .setMessage("将结束所有会话并删除整个 Ubuntu 环境（包括 /root 下的所有文件和已安装的软件），然后重新解压。此操作不可恢复，建议先备份。")
         .setNegativeButton("取消", null)
         .setPositiveButton("删除并重置", (dialog, which) -> confirmResetAgain())
         .show();
