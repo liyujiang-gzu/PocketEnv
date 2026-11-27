@@ -53,7 +53,7 @@
         <!-- 把 rootfs 作为只读存储提供给文件管理器（SAF） -->
         <provider
             android:name=".RootfsProvider"
-            android:authorities="dev.ubox.app.rootfs"
+            android:authorities="dev.ubox.pocketenv.rootfs"
             android:exported="true"
             android:grantUriPermissions="true"
             android:permission="android.permission.MANAGE_DOCUMENTS">

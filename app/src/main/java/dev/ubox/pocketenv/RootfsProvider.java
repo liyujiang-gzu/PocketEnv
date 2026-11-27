@@ -1,4 +1,4 @@
-package dev.ubox.app;
+package dev.ubox.pocketenv;
 
 import android.provider.DocumentsProvider;
 import android.database.Cursor;
@@ -23,7 +23,7 @@ import java.util.Arrays;
  * <p>除 /root 外都只读：宿主持有的文件句柄绕过了 proot 的权限映射，改动系统文件可能破坏 apt/dpkg 的状态。/root 是用户自己的目录，允许文件管理器读写，方便把文件拷进拷出。
  */
 public final class RootfsProvider extends DocumentsProvider {
-  static final String AUTHORITY = "dev.ubox.app.rootfs";
+  static final String AUTHORITY = "dev.ubox.pocketenv.rootfs";
   static final String ROOT_ID = "rootfs";
   private static final String ROOT_NAME = "口袋环境";
 

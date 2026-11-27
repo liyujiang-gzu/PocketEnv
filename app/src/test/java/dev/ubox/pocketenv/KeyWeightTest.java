@@ -1,4 +1,4 @@
-package dev.ubox.app;
+package dev.ubox.pocketenv;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

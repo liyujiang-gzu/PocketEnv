@@ -1,4 +1,4 @@
-package dev.ubox.app;
+package dev.ubox.pocketenv;
 
 import android.graphics.Insets;
 import android.view.View;

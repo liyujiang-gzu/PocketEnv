@@ -1,4 +1,4 @@
-package dev.ubox.app;
+package dev.ubox.pocketenv;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -19,7 +19,7 @@ import java.util.List;
 
 /** 持有所有终端会话；前台服务保证切到后台后 Agent 仍在运行。SSH 进程管理委托给 SshManager。 */
 public class TerminalService extends Service {
-  static final String ACTION_EXIT = "dev.ubox.app.EXIT";
+  static final String ACTION_EXIT = "dev.ubox.pocketenv.EXIT";
   private static final String CHANNEL = "sessions";
   private static final int NOTIFICATION_ID = 1;
 

@@ -10,11 +10,11 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace 'dev.ubox.app'
+    namespace 'dev.ubox.pocketenv'
     compileSdk 36
 
     defaultConfig {
-        applicationId "dev.ubox.app"
+        applicationId "dev.ubox.pocketenv"
         minSdk 26
         targetSdk 36
         versionCode 2026100

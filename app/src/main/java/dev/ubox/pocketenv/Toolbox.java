@@ -1,4 +1,4 @@
-package dev.ubox.app;
+package dev.ubox.pocketenv;
 
 /**
  * 设置页「软件安装」目录：全部工具的声明与安装/卸载/检测命令生成。

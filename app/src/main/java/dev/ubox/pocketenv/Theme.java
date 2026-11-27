@@ -1,4 +1,4 @@
-package dev.ubox.app;
+package dev.ubox.pocketenv;
 
 /** 应用配色常量。UI 类统一从这里取值，避免颜色字面量散落。 */
 final class Theme {
