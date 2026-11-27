@@ -178,9 +178,23 @@ public class MainActivity extends Activity {
   private void updateTitle() {
     TerminalSession session = terminalView.getCurrentSession();
     if (session == null) return;
-    String title = session.getTitle();
-    String name = session.mSessionName + (title == null || title.isEmpty() ? "" : " · " + title);
+    String name = sessionLabel(sessionNumber(session), session.mSessionName, session.getTitle());
     setTitle(session.isRunning() ? name : name + "（已退出，回车关闭）");
+  }
+
+  /** 会话在当前列表中的序号（从 1 开始）；回调时会话可能已被移除，兜底为 1。 */
+  private int sessionNumber(TerminalSession session) {
+    List<TerminalSession> sessions = service == null ? List.of() : service.sessions();
+    int index = sessions.indexOf(session);
+    return index < 0 ? 1 : index + 1;
+  }
+
+  /** 无标题文字显示「会话N」，有标题文字显示「N. 名称 · 标题」（名称为安装任务的自定义名）。 */
+  static String sessionLabel(int number, String name, String title) {
+    String custom = name == null ? "" : name;
+    String hint = title == null ? "" : title;
+    if (custom.isEmpty()) return hint.isEmpty() ? "会话" + number : number + ". " + hint;
+    return number + ". " + custom + (hint.isEmpty() ? "" : " · " + hint);
   }
 
   /** 删除会话后统一选择接替会话；返回是否因没有剩余会话而新建了会话。 */
@@ -293,12 +307,9 @@ public class MainActivity extends Activity {
     row.setOrientation(LinearLayout.HORIZONTAL);
     row.setGravity(Gravity.CENTER_VERTICAL);
 
-    String title = session.getTitle();
+    String name = sessionLabel(sessionNumber(session), session.mSessionName, session.getTitle());
     TextView label = new TextView(this);
-    label.setText(
-        session.mSessionName
-            + (session.isRunning() ? "" : "（已退出）")
-            + (title == null || title.isEmpty() ? "" : " · " + title));
+    label.setText(name + (session.isRunning() ? "" : "（已退出）"));
     label.setSingleLine(true);
     label.setEllipsize(TextUtils.TruncateAt.END);
     int pad = (int) (8 * getResources().getDisplayMetrics().density);

@@ -90,7 +90,8 @@ public class TerminalService extends Service {
     TerminalSession session =
         new TerminalSession(
             argv[0], rootfs.base.getAbsolutePath(), argv, proot.environment(), 5000, client);
-    session.mSessionName = name != null ? name : "会话 " + (sessions.size() + 1);
+    // 默认会话不设名称，展示时由 MainActivity 按列表序号补「会话N / N. 标题」
+    session.mSessionName = name;
     sessions.add(session);
     updateNotification();
     return session;
