@@ -137,8 +137,7 @@ public final class Toolbox {
         apt("cli", "常用命令", "less、htop、tree、zip/unzip、xz、jq、ripgrep、file、tmux",
             "less", "htop", "tree", "zip", "unzip", "xz-utils", "jq", "ripgrep", "file",
             "procps", "tmux"),
-        apt("editor", "编辑器", "nano、vim", "nano", "vim"),
-        apt("ssh", "SSH 客户端", "ssh、scp、ssh-keygen", "openssh-client")),
+        apt("editor", "编辑器", "nano、vim", "nano", "vim")),
     new Section(
         "开发环境",
         apt("git", "Git", "版本管理，Agent 改代码基本都需要", "git", "ca-certificates"),
