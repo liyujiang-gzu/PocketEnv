@@ -1,17 +1,8 @@
 # 口袋环境开发踩坑记录
 
 > 在 aarch64（ARM64）离线工具链上构建、运行本项目时踩到的坑，逐条记录现象、根因与解法，供后续排查参考。
-> 环境：aarch64 Linux + Pocket Dev Env 离线工具链（`/opt/android-portable`）、AGP 9.1.0、Gradle 9.3.1、compileSdk 36。
-> 只收「现象与根因严重错位、不点破难以定位」的坑；常规配置项压缩在第一节，安装操作要点见文末附录。
-
----
-
-## 〇、环境前置配置（非坑，快速过）
-
-构建前两处一次性配置，报错信息自解释，列出备查：
-
-- **Gradle 版本**：AGP 9.1.0 要求 Gradle ≥ 9.3.1，`gradle-wrapper.properties` 的 `distributionUrl` 需指向 9.3.1（报 `Minimum supported Gradle version is 9.3.1` 即此项）。国内慢可换腾讯镜像。Pocket Dev Env 现已内置 9.3.1，`POCKET_GRADLE=8` 可回退 8.14.3。
-- **仓库注入**：本机 Gradle 8.14.3 曾被上游塞过 `init.d/init.gradle`（强制向所有工程注入 Aliyun 镜像），与本项目 `repositoriesMode=FAIL_ON_PROJECT_REPOS` 冲突，删掉该脚本即可（报 `repository 'maven' was added by initialization script` 即此项）。`FAIL_ON_PROJECT_REPOS` 是禁止 init/插件偷偷加仓库的安全特性，不应为迁就 init 脚本而关闭。
+> 环境：aarch64 proot Ubuntu + PocketEnv 离线工具链（OpenCode 2 + OpenJDK 17 + Gradle 9 + Android SDK 36）。
+> 只收「现象与根因严重错位、不点破难以定位」的坑，安装操作要点见文末附录。
 
 ---
 
@@ -124,6 +115,6 @@ tar: Exiting with failure status due to previous errors
 python3 -c "import zipfile; z=zipfile.ZipFile('app/build/outputs/apk/release/app-release.apk'); \
   n=z.namelist(); print(len(n), 'AndroidManifest.xml' in n, 'resources.arsc' in n)"
 
-# 检查签名 scheme（v1/v2/v3）
+# 检查签名 scheme（v2/v3）
 apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
 ```
