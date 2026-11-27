@@ -392,7 +392,7 @@ public class MainActivity extends Activity {
       altDown = !altDown;
       refreshModifiers();
     });
-    addKey(row1, "回车", v -> sendKey(KeyEvent.KEYCODE_ENTER));
+    addKey(row1, "ENTER", v -> sendKey(KeyEvent.KEYCODE_ENTER));
     addKey(row1, "←", v -> sendKey(KeyEvent.KEYCODE_DPAD_LEFT));
     addKey(row1, "↓", v -> sendKey(KeyEvent.KEYCODE_DPAD_DOWN));
     addKey(row1, "↑", v -> sendKey(KeyEvent.KEYCODE_DPAD_UP));
@@ -404,7 +404,7 @@ public class MainActivity extends Activity {
     addKey(row2, "END", v -> sendKey(KeyEvent.KEYCODE_MOVE_END));
     addKey(row2, "PGUP", v -> sendKey(KeyEvent.KEYCODE_PAGE_UP));
     addKey(row2, "PGDN", v -> sendKey(KeyEvent.KEYCODE_PAGE_DOWN));
-    addKey(row2, "粘贴", v -> sessionClient.onPasteTextFromClipboard(terminalView.getCurrentSession()));
+    addKey(row2, "PASTE", v -> sessionClient.onPasteTextFromClipboard(terminalView.getCurrentSession()));
   }
 
   private Button addKey(LinearLayout row, String label, View.OnClickListener listener) {
