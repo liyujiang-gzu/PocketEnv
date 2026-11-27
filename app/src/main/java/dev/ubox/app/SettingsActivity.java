@@ -79,6 +79,8 @@ public class SettingsActivity extends Activity {
   private static final String GITHUB_URL = "https://github.com/liyujiang-gzu/PocketEnv";
   /** 意见反馈地址，跳转 Gitee Issues。 */
   private static final String FEEDBACK_URL = "https://gitee.com/li_yu_jiang/PocketEnv/issues";
+  /** 作者联系邮箱，联系作者跳转用。 */
+  private static final String AUTHOR_EMAIL = "1032694760@qq.com";
 
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
@@ -463,6 +465,11 @@ public class SettingsActivity extends Activity {
     subtitle(licenseRow).setText("查看本应用使用的第三方组件及其许可证");
     licenseRow.setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     list.addView(licenseRow);
+
+    LinearLayout contactRow = row("联系作者", null);
+    subtitle(contactRow).setText(AUTHOR_EMAIL);
+    contactRow.setOnClickListener(v -> openUrl("mailto:" + AUTHOR_EMAIL));
+    list.addView(contactRow);
 
     LinearLayout versionRow = row("版本", null);
     subtitle(versionRow).setText(appVersion());
