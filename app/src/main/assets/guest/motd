@@ -1,10 +1,8 @@
 
- 口袋环境 · Ubuntu 24.04 arm64
+ 口袋环境 · Ubuntu 24.04.5 arm64
 
- 安装工具/Agent：右上角菜单 → 设置
- 换国内源：      ubox-mirror tuna
- 命令行安装：    ubox-install apt <包>
- 手机存储：      /sdcard（菜单中授权）
+ 换国内软件源、安装开发环境及编程智能体：右上角菜单 → 设置
+
 
  隐藏此提示：touch ~/.hushlogin
 

@@ -203,7 +203,7 @@ public class MainActivity extends Activity {
     return number + ". " + custom + (hint.isEmpty() ? "" : " · " + hint);
   }
 
-  /** 删除会话后统一选择接替会话；返回是否因没有剩余会话而新建了会话。 */
+  /** 结束会话后统一选择接替会话；返回是否因没有剩余会话而新建了会话。 */
   private boolean afterSessionRemoved(boolean wasCurrent) {
     List<TerminalSession> sessions = service == null ? List.of() : service.sessions();
     if (sessions.isEmpty()) {
@@ -268,7 +268,7 @@ public class MainActivity extends Activity {
     }
   }
 
-  /** 会话管理弹窗：每行一个会话，可切换或删除。 */
+  /** 会话管理弹窗：每行一个会话，可切换或结束。 */
   private void manageSessions() {
     if (service == null) return;
     if (service.sessions().isEmpty()) {
@@ -307,7 +307,7 @@ public class MainActivity extends Activity {
     dialog.show();
   }
 
-  /** 管理弹窗的一行：名称 + 切换 + 删除。 */
+  /** 管理弹窗的一行：名称 + 切换 + 结束。 */
   private View sessionRow(TerminalSession session, AlertDialog dialog, Runnable refresh) {
     LinearLayout row = new LinearLayout(this);
     row.setOrientation(LinearLayout.HORIZONTAL);
@@ -335,7 +335,7 @@ public class MainActivity extends Activity {
     row.addView(switchButton);
 
     Button deleteButton = new Button(this);
-    deleteButton.setText("删除");
+    deleteButton.setText("结束");
     deleteButton.setTextColor(Theme.DANGER);
     deleteButton.setMinimumWidth(0);
     deleteButton.setOnClickListener(v -> deleteSession(session, dialog, refresh));
@@ -343,15 +343,15 @@ public class MainActivity extends Activity {
     return row;
   }
 
-  /** 删除会话；运行中的会话先确认，避免误点终止正在执行的安装或编译。 */
+  /** 结束会话；运行中的会话先确认，避免误点终止正在执行的安装或编译。 */
   private void deleteSession(TerminalSession session, AlertDialog dialog, Runnable refresh) {
     if (service == null) return;
     if (session.isRunning()) {
       new AlertDialog.Builder(this)
-          .setTitle("删除运行中的会话？")
+          .setTitle("结束运行中的会话？")
           .setMessage("将终止该会话正在执行的命令（如安装或编译），未保存的输出会丢失。")
           .setNegativeButton("取消", null)
-          .setPositiveButton("删除", (d, which) -> doDeleteSession(session, dialog, refresh))
+          .setPositiveButton("结束", (d, which) -> doDeleteSession(session, dialog, refresh))
           .show();
       return;
     }

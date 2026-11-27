@@ -368,13 +368,13 @@ public class SettingsActivity extends Activity {
     batteryRow.setOnClickListener(v -> requestIgnoreBatteryOptimizations());
     list.addView(batteryRow);
 
-    LinearLayout backupRow = row("增量备份 Ubuntu", null);
-    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/PocketEnv/backups");
-    backupRow.setOnClickListener(v -> runInTerminal("增量备份", "ubox-backup"));
+    LinearLayout backupRow = row("备份 Ubuntu 数据", null);
+    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/Download/backups");
+    backupRow.setOnClickListener(v -> runInTerminal("备份 Ubuntu 新增内容", "ubox-backup"));
     list.addView(backupRow);
 
     LinearLayout resetRow = row("重置 Ubuntu 环境", null);
-    subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复");
+    subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复，请谨慎操作");
     resetRow.setOnClickListener(v -> confirmReset());
     list.addView(resetRow);
   }
@@ -429,8 +429,8 @@ public class SettingsActivity extends Activity {
   /** 重置不可恢复，再确认一次。 */
   private void confirmResetAgain() {
     new AlertDialog.Builder(this)
-        .setTitle("确认重置？")
-        .setMessage("删除后无法恢复 /root 下的文件和已安装的软件，确定继续吗？")
+        .setTitle("风险提示")
+        .setMessage("删除后无法恢复 /root/ 下的文件和已安装的软件，确定继续重置吗？")
         .setNegativeButton("取消", null)
         .setPositiveButton(
             "确认重置",
