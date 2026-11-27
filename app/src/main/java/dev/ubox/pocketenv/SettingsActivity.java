@@ -393,7 +393,7 @@ public class SettingsActivity extends Activity {
     list.addView(batteryRow);
 
     LinearLayout backupRow = row("增量备份 Ubuntu", null);
-    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/PocketEnv/backups");
+    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/Download/backups");
     backupRow.setOnClickListener(v -> runInTerminal("增量备份", "ubox-backup"));
     list.addView(backupRow);
 
@@ -412,11 +412,15 @@ public class SettingsActivity extends Activity {
 
   /** 系统文件选择器挑备份文件；选中后复制到 guest 可见的应用外部目录再还原。 */
   private void pickBackup() {
-    startActivityForResult(
-        new Intent(Intent.ACTION_OPEN_DOCUMENT)
-            .addCategory(Intent.CATEGORY_OPENABLE)
-            .setType("*/*"),
-        REQUEST_PICK_BACKUP);
+    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+        .addCategory(Intent.CATEGORY_OPENABLE)
+        .setType("*/*");
+    // 默认打开备份输出目录；目录不存在时由文件选择器自行处理
+    intent.putExtra(
+        DocumentsContract.EXTRA_INITIAL_URI,
+        DocumentsContract.buildDocumentUri(
+            "com.android.externalstorage.documents", "primary:Download/backups"));
+    startActivityForResult(intent, REQUEST_PICK_BACKUP);
   }
 
   private void confirmRestore(Uri uri, String name) {
