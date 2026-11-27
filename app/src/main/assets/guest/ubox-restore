@@ -1,0 +1,35 @@
+#!/bin/bash
+# Ubuntu 增量还原：把 ubox-backup 生成的归档解压覆盖回当前环境。
+# 用法: ubox-restore <备份文件.tar.gz>
+# 校验：先列出归档验证 gzip/tar 完整性；若同目录有 .sha256 旁文件，再校验 SHA-256。
+set -uo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+archive="${1:-}"
+if [ -z "$archive" ]; then
+  echo "用法: ubox-restore <备份文件.tar.gz>"
+  exit 2
+fi
+[ -f "$archive" ] || { echo "找不到备份文件：$archive"; exit 1; }
+
+echo "==> 校验归档完整性"
+tar -tzf "$archive" >/dev/null || { echo "备份文件已损坏或格式不正确，已中止"; exit 1; }
+
+if [ -f "$archive.sha256" ]; then
+  echo "==> 校验 SHA-256"
+  if ! ( cd "$(dirname "$archive")" && sha256sum -c "$(basename "$archive").sha256" ); then
+    echo "SHA-256 校验失败，已中止（文件可能被修改或复制不完整）"
+    exit 1
+  fi
+else
+  echo "==> 未找到 .sha256 校验文件，跳过 SHA-256（已通过归档完整性检查）"
+fi
+
+echo "==> 解压覆盖到当前环境"
+# 不覆盖正在执行的脚本本身（旧备份可能带有不同版本），其余 ubox 脚本下次启动会刷新
+tar -xzf "$archive" -C / --exclude=usr/local/bin/ubox-restore \
+  || { echo "解压失败，部分文件可能已被覆盖"; exit 1; }
+
+echo
+echo "✅ 还原完成"
+echo "新增软件包清单见 /usr/local/lib/ubox/added-packages.txt（若归档包含）"

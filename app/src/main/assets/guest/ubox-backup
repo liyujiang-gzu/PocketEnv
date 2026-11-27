@@ -66,7 +66,14 @@ echo "==> 待打包文件：$count 个"
 echo "==> 生成归档 $out"
 tar -czf "$out" -T "$tmp/files" || { echo "归档失败"; exit 1; }
 
+echo "==> 生成 SHA-256 校验文件"
+if ( cd "$BACKUP_DIR" && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" ); then
+  echo "校验文件：$(basename "$out").sha256"
+else
+  echo "⚠️ 校验文件生成失败，还原时将只做 gzip 完整性检查"
+fi
+
 echo
 echo "✅ 增量备份完成"
-ls -lh "$out"
+ls -lh "$out" "$out.sha256" 2>/dev/null
 echo "包含：$count 个新增文件、$(wc -l < "$ADDED_PACKAGES") 个新增软件包（清单见归档内 added-packages.txt）"
