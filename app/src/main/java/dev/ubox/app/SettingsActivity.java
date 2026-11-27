@@ -910,16 +910,37 @@ public class SettingsActivity extends Activity {
                     sshState.postDelayed(
                         () -> {
                           updateSshUi();
-                          if (service != null && !service.isSshRunning()) showSshLog();
-                          else if (sshKeyCount == 0 && !sshHasPassword)
-                            Toast.makeText(this, "SSH 已启动，请先添加公钥或设置密码", Toast.LENGTH_LONG)
-                                .show();
+                          if (service != null && !service.isSshRunning()) {
+                            showSshLog();
+                          } else {
+                            boolean warned = maybeWarnBatteryOptimization();
+                            if (!warned && sshKeyCount == 0 && !sshHasPassword)
+                              Toast.makeText(
+                                      this,
+                                      "SSH 已启动，请先添加公钥或设置密码",
+                                      Toast.LENGTH_LONG)
+                                  .show();
+                          }
                         },
                         2500);
                   });
             },
             "settings-ssh-start")
         .start();
+  }
+
+  /** 锁屏后 Doze 会挂起网络，提示把应用加入电池优化白名单，否则仅靠唤醒锁仍可能断连。 */
+  private boolean maybeWarnBatteryOptimization() {
+    if (isFinishing() || ignoringBatteryOptimizations()) return false;
+    new AlertDialog.Builder(this)
+        .setTitle("锁屏后保持 SSH 连接")
+        .setMessage(
+            "Android 会在锁屏后休眠 CPU 并限制后台网络，SSH 可能因此断开。"
+                + "建议把 UbuntuBox 加入电池优化白名单。")
+        .setNegativeButton("稍后", null)
+        .setPositiveButton("去设置", (dialog, which) -> requestIgnoreBatteryOptimizations())
+        .show();
+    return true;
   }
 
   private void copySshCommand() {

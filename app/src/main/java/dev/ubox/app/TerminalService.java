@@ -7,7 +7,9 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.net.wifi.WifiManager;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
 import com.termux.terminal.TerminalSession;
@@ -32,6 +34,8 @@ public class TerminalService extends Service {
   private final IBinder binder = new LocalBinder();
   private final List<TerminalSession> sessions = new ArrayList<>();
   private PowerManager.WakeLock wakeLock;
+  private PowerManager.WakeLock sshWakeLock;
+  private WifiManager.WifiLock sshWifiLock;
   private Runnable onExit;
 
   @Override
@@ -151,6 +155,8 @@ public class TerminalService extends Service {
       builder.environment().put(entry.substring(0, split), entry.substring(split + 1));
     }
     sshProcess = builder.start();
+    acquireSshLocks();
+    watchSsh(sshProcess);
     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(PREF_SSH, true).apply();
     updateNotification();
   }
@@ -169,24 +175,79 @@ public class TerminalService extends Service {
    * 句柄会丢失或留下孤儿 sshd，端口一直占用，下次启动就会失败，所以再按命令行兜底清理一遍。
    */
   private synchronized boolean stopSshProcess() {
-    Process process = sshProcess;
-    sshProcess = null;
-    if (process != null) {
-      // proot 带 --kill-on-exit，正常结束会连同 sshd 及其子进程一起结束
-      process.destroy();
-      try {
-        if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) process.destroyForcibly();
-      } catch (InterruptedException interrupted) {
-        Thread.currentThread().interrupt();
+    try {
+      Process process = sshProcess;
+      sshProcess = null;
+      if (process != null) {
+        // proot 带 --kill-on-exit，正常结束会连同 sshd 及其子进程一起结束
+        process.destroy();
+        try {
+          if (!process.waitFor(1, java.util.concurrent.TimeUnit.SECONDS)) process.destroyForcibly();
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+        }
       }
+      List<Integer> pids = sshPids();
+      if (pids.isEmpty()) return !isPortListening();
+      signal(pids, android.system.OsConstants.SIGTERM);
+      if (awaitPortFree(1_000)) return true;
+      // proot 被强杀后 guest 里的 sshd 会变成孤儿继续监听，逐个补刀
+      signal(sshPids(), android.system.OsConstants.SIGKILL);
+      return awaitPortFree(500);
+    } finally {
+      releaseSshLocks();
     }
-    List<Integer> pids = sshPids();
-    if (pids.isEmpty()) return !isPortListening();
-    signal(pids, android.system.OsConstants.SIGTERM);
-    if (awaitPortFree(1_000)) return true;
-    // proot 被强杀后 guest 里的 sshd 会变成孤儿继续监听，逐个补刀
-    signal(sshPids(), android.system.OsConstants.SIGKILL);
-    return awaitPortFree(500);
+  }
+
+  /**
+   * SSH 运行期间保持 CPU 与 Wi-Fi 唤醒：锁屏后设备会休眠 CPU，sshd 虽然活着却无法响应连接。
+   * 与菜单里手动开启的「保持 CPU 唤醒」相互独立。
+   */
+  @SuppressWarnings("deprecation")
+  private void acquireSshLocks() {
+    PowerManager power = getSystemService(PowerManager.class);
+    if (sshWakeLock == null) {
+      sshWakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ubox:sshd");
+      sshWakeLock.setReferenceCounted(false);
+    }
+    if (!sshWakeLock.isHeld()) sshWakeLock.acquire();
+    WifiManager wifi = getSystemService(WifiManager.class);
+    if (wifi == null) return; // 极少数无 Wi-Fi 的设备（如电视盒子）
+    if (sshWifiLock == null) {
+      sshWifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "ubox:sshd");
+      sshWifiLock.setReferenceCounted(false);
+    }
+    if (!sshWifiLock.isHeld()) sshWifiLock.acquire();
+  }
+
+  private void releaseSshLocks() {
+    if (sshWakeLock != null && sshWakeLock.isHeld()) sshWakeLock.release();
+    if (sshWifiLock != null && sshWifiLock.isHeld()) sshWifiLock.release();
+  }
+
+  /** sshd 自行退出（配置错误、崩溃）时释放锁并刷新通知。 */
+  private void watchSsh(Process process) {
+    Thread watcher =
+        new Thread(
+            () -> {
+              try {
+                process.waitFor();
+              } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+              }
+              new Handler(getMainLooper())
+                  .post(
+                      () -> {
+                        if (sshProcess != process) return;
+                        sshProcess = null;
+                        releaseSshLocks();
+                        updateNotification();
+                      });
+            },
+            "ubox-sshd-watch");
+    watcher.setDaemon(true);
+    watcher.start();
   }
 
   /** /proc 里命令行含 ubox-sshd（proot 外壳）或 /usr/sbin/sshd -D（guest 内 sshd）的进程。 */
