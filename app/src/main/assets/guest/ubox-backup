@@ -1,5 +1,5 @@
 #!/bin/bash
-# Ubuntu 增量备份：只打包在 Ubuntu Base 之上新增的文件，跳过基线已有文件与空目录。
+# Ubuntu 增量备份：打包 Ubuntu Base 之上新增的文件、改动的 Base 文件和空目录。
 # 用法: ubox-backup
 # 输出: /sdcard/Download/backups/backup-YYYYmmdd-HHMMSS.tar.gz
 set -uo pipefail
@@ -8,6 +8,7 @@ export DEBIAN_FRONTEND=noninteractive
 BACKUP_DIR=/sdcard/Download/backups
 BASE_DIR=/usr/local/lib/ubox
 BASE_FILES="$BASE_DIR/base-files.txt"
+BASE_MANIFEST="$BASE_DIR/base-manifest.txt"
 BASE_PACKAGES="$BASE_DIR/base-packages.txt"
 ADDED_PACKAGES="$BASE_DIR/added-packages.txt"
 
@@ -28,9 +29,8 @@ dpkg-query -W -f='${Package}\n' 2>/dev/null | sort -u > "$tmp/all-packages"
 comm -23 "$tmp/all-packages" "$BASE_PACKAGES" > "$ADDED_PACKAGES"
 echo "==> 新增软件包：$(wc -l < "$ADDED_PACKAGES") 个"
 
-# 排除清单：基线文件路径（转成绝对路径）+ 虚拟文件系统、缓存、手机共享存储
+# 排除清单：虚拟文件系统、缓存、手机共享存储；Base 文件是否纳入由基线清单决定
 {
-  sed 's|^|/|' "$BASE_FILES"
   cat <<'EOF'
 /proc
 /sys
@@ -50,21 +50,48 @@ echo "==> 新增软件包：$(wc -l < "$ADDED_PACKAGES") 个"
 EOF
 } > "$tmp/excludes"
 
-# 只列文件和符号链接，不列目录：空目录（0 字节）自然被排除
-echo "==> 扫描新增文件"
+# 旧版本环境缺少基线清单时退回旧规则：跳过全部 Base 文件
+if [ ! -f "$BASE_MANIFEST" ]; then
+  echo "⚠️ 缺少基线清单 $BASE_MANIFEST，本次跳过全部 Base 文件"
+  sed 's|^|/|' "$BASE_FILES" >> "$tmp/excludes"
+fi
+
+# 列出文件、符号链接和空目录；非空目录由归档内的文件自动带出
+echo "==> 扫描新增或修改的内容"
 find / -xdev \
   \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp \
      -o -path /sdcard -o -path /data -o -path /system -o -path /apex -o -path /storage \) \
-  -prune -o \( -type f -o -type l \) -print0 2>/dev/null \
-  | tr '\0' '\n' \
-  | grep -F -x -v -f "$tmp/excludes" > "$tmp/files" || true
+  -prune -o \( -type f -o -type l -o \( -type d -empty \) \) \
+  -printf '%y\t%s\t%T@\t%p\n' 2>/dev/null \
+  | awk -F'\t' -v excludes="$tmp/excludes" -v manifest="$BASE_MANIFEST" '
+      BEGIN {
+        while ((getline line < excludes) > 0) skip[line] = 1
+        while ((getline line < manifest) > 0) {
+          split(line, f, "\t")
+          if (f[1] == "d") baseDir[f[4]] = 1
+          else base[f[4]] = f[2] "\t" f[3]
+        }
+      }
+      {
+        if ($4 in skip) next
+        path = $4
+        sub(/^\//, "", path)
+        if ($1 == "d") {
+          if (!(path in baseDir)) print $4
+        } else if (path in base) {
+          split(base[path], b, "\t")
+          if ($2 != b[1] || int($3) != int(b[2])) print $4
+        } else {
+          print $4
+        }
+      }' > "$tmp/files" || true
 count=$(wc -l < "$tmp/files")
-echo "==> 待打包文件：$count 个"
+echo "==> 待打包文件/目录：$count 个"
 
-[ "$count" -gt 0 ] || { echo "没有需要备份的新增文件"; exit 1; }
+[ "$count" -gt 0 ] || { echo "没有需要备份的新增或修改内容"; exit 1; }
 
 echo "==> 生成归档 $out"
-tar -czf "$out" -T "$tmp/files" || { echo "归档失败"; exit 1; }
+tar --no-recursion -czf "$out" -T "$tmp/files" || { echo "归档失败"; exit 1; }
 
 echo "==> 生成 SHA-256 校验文件"
 if ( cd "$BACKUP_DIR" && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" ); then
@@ -76,4 +103,4 @@ fi
 echo
 echo "✅ 增量备份完成"
 ls -lh "$out" "$out.sha256" 2>/dev/null
-echo "包含：$count 个新增文件、$(wc -l < "$ADDED_PACKAGES") 个新增软件包（清单见归档内 added-packages.txt）"
+echo "包含：$count 个新增/修改文件或空目录、$(wc -l < "$ADDED_PACKAGES") 个新增软件包（清单见归档内 added-packages.txt）"

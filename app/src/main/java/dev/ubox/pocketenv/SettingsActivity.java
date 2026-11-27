@@ -393,7 +393,7 @@ public class SettingsActivity extends Activity {
     list.addView(batteryRow);
 
     LinearLayout backupRow = row("备份 Ubuntu 数据", null);
-    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/Download/backups，打包为 .tar.gz");
+    subtitle(backupRow).setText("备份新增或修改的内容与空目录，输出到 /sdcard/Download/backups，打包为 .tar.gz");
     backupRow.setOnClickListener(v -> runInTerminal("备份 Ubuntu 新增内容", "ubox-backup"));
     list.addView(backupRow);
 
