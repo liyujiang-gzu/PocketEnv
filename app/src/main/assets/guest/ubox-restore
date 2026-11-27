@@ -12,6 +12,7 @@ if [ -z "$archive" ]; then
 fi
 [ -f "$archive" ] || { echo "找不到备份文件：$archive"; exit 1; }
 
+echo "==> 恢复备份文件会耗费一段时间，请耐心等待"
 echo "==> 校验归档完整性"
 tar -tzf "$archive" >/dev/null || { echo "备份文件已损坏或格式不正确，已中止"; exit 1; }
 

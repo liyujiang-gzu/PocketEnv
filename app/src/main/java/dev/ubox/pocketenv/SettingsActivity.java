@@ -393,24 +393,24 @@ public class SettingsActivity extends Activity {
     list.addView(batteryRow);
 
     LinearLayout backupRow = row("备份 Ubuntu 数据", null);
-    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/Download/backups");
+    subtitle(backupRow).setText("仅备份 Ubuntu Base 之上的新增内容，输出到 /sdcard/Download/backups，打包为 .tar.gz");
     backupRow.setOnClickListener(v -> runInTerminal("备份 Ubuntu 新增内容", "ubox-backup"));
     list.addView(backupRow);
 
-    LinearLayout restoreRow = row("还原 Ubuntu 数据", null);
+    LinearLayout restoreRow = row("恢复 Ubuntu 备份", null);
     subtitle(restoreRow).setText("从 .tar.gz 备份文件恢复，覆盖现有同名文件，请先授权访问 /sdcard");
     restoreRow.setOnClickListener(v -> pickBackup());
     list.addView(restoreRow);
 
     LinearLayout resetRow = row("重置 Ubuntu 环境", null);
-    subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重新解压，数据不可恢复，请谨慎操作");
+    subtitle(resetRow).setText("结束所有会话并删除整个 Ubuntu 环境后重置到初始的 Base 系统，数据不可恢复");
     resetRow.setOnClickListener(v -> confirmReset());
     list.addView(resetRow);
   }
 
-  // ---------------------------------------------------------------- 还原
+  // ---------------------------------------------------------------- 恢复
 
-  /** 系统文件选择器挑备份文件；选中后复制到 guest 可见的应用外部目录再还原。 */
+  /** 系统文件选择器挑备份文件；选中后复制到 guest 可见的应用外部目录再恢复。 */
   private void pickBackup() {
     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
         .addCategory(Intent.CATEGORY_OPENABLE)
@@ -425,13 +425,13 @@ public class SettingsActivity extends Activity {
 
   private void confirmRestore(Uri uri, String name) {
     new AlertDialog.Builder(this)
-        .setTitle("还原 Ubuntu 数据")
+        .setTitle("恢复 Ubuntu 备份")
         .setMessage("将从「" + name + "」恢复备份：\n\n"
             + "• 覆盖当前环境中的同名文件，备份之后新增的文件会保留\n"
             + "• 正在运行的 SSH 服务会先停止\n"
-            + "• 还原不可撤销，建议先做一次增量备份\n\n确定继续吗？")
+            + "• 恢复不可撤销，建议先做一次 Ubuntu 备份\n\n确定继续吗？")
         .setNegativeButton("取消", null)
-        .setPositiveButton("还原", (dialog, which) -> copyAndRestore(uri, name))
+        .setPositiveButton("确认恢复", (dialog, which) -> copyAndRestore(uri, name))
         .show();
   }
 
@@ -449,7 +449,7 @@ public class SettingsActivity extends Activity {
     File archive = new File(dir, name);
     File partial = new File(dir, name + ".part");
     AlertDialog progress = new AlertDialog.Builder(this)
-        .setTitle("准备还原")
+        .setTitle("准备恢复")
         .setMessage("正在复制备份文件…\n\n文件较大时可能需要一段时间，请勿退出。")
         .setCancelable(false)
         .create();
@@ -503,7 +503,7 @@ public class SettingsActivity extends Activity {
   private void stopSshThenRestore(File archive) {
     String command = "ubox-restore " + shellQuote(archive.getAbsolutePath());
     if (service == null || !service.isSshRunning()) {
-      runInTerminal("还原 Ubuntu 数据", command);
+      runInTerminal("恢复 Ubuntu 备份文件", command);
       return;
     }
     Async.run(this, "restore-stop-ssh",
@@ -511,8 +511,8 @@ public class SettingsActivity extends Activity {
           service.stopSsh();
           return null;
         },
-        ignored -> runInTerminal("还原 Ubuntu 数据", command),
-        error -> runInTerminal("还原 Ubuntu 数据", command));
+        ignored -> runInTerminal("恢复 Ubuntu 备份文件", command),
+        error -> runInTerminal("恢复 Ubuntu 备份文件", command));
   }
 
   private String displayName(Uri uri) {
@@ -525,7 +525,7 @@ public class SettingsActivity extends Activity {
     return null;
   }
 
-  /** 只接受 gzip 备份，避免把任意文件复制进还原目录。 */
+  /** 只接受 gzip 备份，避免把任意文件复制进恢复目录。 */
   static boolean isBackupFile(String name) {
     String lower = name.toLowerCase(Locale.ROOT);
     return lower.endsWith(".tar.gz") || lower.endsWith(".tgz");
