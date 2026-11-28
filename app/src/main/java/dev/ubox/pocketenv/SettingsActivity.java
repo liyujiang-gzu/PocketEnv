@@ -107,6 +107,18 @@ public class SettingsActivity extends Activity {
         "https://mirrors.huaweicloud.com/repository/maven", "maven-mirror"),
   };
 
+  /** Gradle 源：切换走 ubox-gradle-mirror，写 ~/.gradle/init.gradle（全局仓库）。 */
+  private static final MirrorOption[] GRADLE_MIRRORS = {
+    new MirrorOption("official", "官方（默认）", "https://repo.maven.apache.org/maven2",
+        "https://repo.maven.apache.org/maven2", "gradle-mirror"),
+    new MirrorOption("aliyun", "阿里云（推荐）", "https://maven.aliyun.com/repository/public",
+        "https://maven.aliyun.com/repository/public", "gradle-mirror"),
+    new MirrorOption("tencent", "腾讯云", "https://mirrors.cloud.tencent.com/nexus/repository/maven-public",
+        "https://mirrors.cloud.tencent.com/nexus/repository/maven-public", "gradle-mirror"),
+    new MirrorOption("huawei", "华为云", "https://mirrors.huaweicloud.com/repository/maven",
+        "https://mirrors.huaweicloud.com/repository/maven", "gradle-mirror"),
+  };
+
   /** 项目 GitHub 开源地址，项目源码跳转用。 */
   private static final String GITHUB_URL = "https://github.com/liyujiang-gzu/PocketEnv";
   /** 意见反馈地址，跳转 GitEE Issues。 */
@@ -125,6 +137,7 @@ public class SettingsActivity extends Activity {
   private final Map<String, Button> buttons = new HashMap<>();
   private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, goProxyValue, statusLine;
   private TextView mavenMirrorValue;
+  private TextView gradleMirrorValue;
   private Button storageButton, batteryButton;
   private TerminalService service;
   private SshSection sshSection;
@@ -184,6 +197,12 @@ public class SettingsActivity extends Activity {
     mavenMirrorValue.setText("读取中…");
     mavenRow.setOnClickListener(v -> chooseMavenMirror());
     list.addView(mavenRow);
+
+    LinearLayout gradleRow = row("Gradle 源", null);
+    gradleMirrorValue = subtitle(gradleRow);
+    gradleMirrorValue.setText("读取中…");
+    gradleRow.setOnClickListener(v -> chooseGradleMirror());
+    list.addView(gradleRow);
 
     for (Toolbox.Section section : Toolbox.SECTIONS) {
       list.addView(header(section.title()));
@@ -278,6 +297,7 @@ public class SettingsActivity extends Activity {
     String pypiMirror = "";
     String goProxy = "";
     String mavenMirror = "";
+    String gradleMirror = "";
     int keys = 0;
     for (String line : output.split("\n")) {
       // npm 源行是空格分隔（URL 含 = ），单独处理
@@ -300,6 +320,11 @@ public class SettingsActivity extends Activity {
         mavenMirror = line.substring("maven ".length()).trim();
         continue;
       }
+      // Gradle 源行同样空格分隔
+      if (line.startsWith("gradle ")) {
+        gradleMirror = line.substring("gradle ".length()).trim();
+        continue;
+      }
       int split = line.indexOf('=');
       if (split <= 0) continue;
       String key = line.substring(0, split), value = line.substring(split + 1).trim();
@@ -307,12 +332,13 @@ public class SettingsActivity extends Activity {
       else if (key.equals("sshkeys")) keys = parseInt(value);
       else result.put(key, value.equals("1"));
     }
-    applyStatus(result, mirror, npmRegistry, pypiMirror, goProxy, mavenMirror, keys);
+    applyStatus(result, mirror, npmRegistry, pypiMirror, goProxy, mavenMirror, gradleMirror,
+        keys);
   }
 
   /** 按解析结果刷新各分区。包内可见，便于单独验证解析逻辑。 */
   void applyStatus(Map<String, Boolean> result, String mirror, String npmRegistry,
-      String pypiMirror, String goProxy, String mavenMirror, int keys) {
+      String pypiMirror, String goProxy, String mavenMirror, String gradleMirror, int keys) {
     installed.clear();
     installed.putAll(result);
     mirrorValue.setText(describeMirror(mirror));
@@ -320,6 +346,7 @@ public class SettingsActivity extends Activity {
     pypiMirrorValue.setText(describePypiMirror(pypiMirror));
     goProxyValue.setText(describeGoProxy(goProxy));
     mavenMirrorValue.setText(describeMavenMirror(mavenMirror));
+    gradleMirrorValue.setText(describeGradleMirror(gradleMirror));
     sshSection.updateStatus(
         Boolean.TRUE.equals(result.get("sshd")), keys, Boolean.TRUE.equals(result.get("sshpw")));
     for (Map.Entry<String, Button> entry : buttons.entrySet())
@@ -380,6 +407,15 @@ public class SettingsActivity extends Activity {
   private void chooseMavenMirror() {
     MirrorOption.choose(this, "选择 Maven 源（settings.xml）", MAVEN_MIRRORS, "（mirrorOf=central）",
         () -> mavenMirrorValue.setText("切换中…"), this::refreshStatus);
+  }
+
+  private static String describeGradleMirror(String url) {
+    return MirrorOption.describeByPrefix(GRADLE_MIRRORS, url, "官方默认（未配置）");
+  }
+
+  private void chooseGradleMirror() {
+    MirrorOption.choose(this, "选择 Gradle 源（init.gradle）", GRADLE_MIRRORS, "（全局仓库）",
+        () -> gradleMirrorValue.setText("切换中…"), this::refreshStatus);
   }
 
   private void onToolClicked(Toolbox.Tool tool) {

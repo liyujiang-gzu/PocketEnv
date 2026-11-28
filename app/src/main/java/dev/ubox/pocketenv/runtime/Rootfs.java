@@ -200,6 +200,7 @@ public final class Rootfs {
     writeAsset(context, "guest/ubox-pypi-mirror", new File(local, "ubox-pypi-mirror"), 0755);
     writeAsset(context, "guest/ubox-goproxy", new File(local, "ubox-goproxy"), 0755);
     writeAsset(context, "guest/ubox-maven-mirror", new File(local, "ubox-maven-mirror"), 0755);
+    writeAsset(context, "guest/ubox-gradle-mirror", new File(local, "ubox-gradle-mirror"), 0755);
     writeAsset(context, "guest/ubox-node", new File(local, "ubox-node"), 0755);
     writeAsset(context, "guest/ubox-install", new File(local, "ubox-install"), 0755);
     writeAsset(context, "guest/ubox-android-sdk", new File(local, "ubox-android-sdk"), 0755);

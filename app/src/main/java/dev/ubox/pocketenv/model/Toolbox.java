@@ -192,6 +192,9 @@ public final class Toolbox {
     // Maven 源读 ~/.m2/settings.xml 里 mirror 的 url（切换脚本写入），空格分隔避免 URL 里的 =
     script.append("echo maven $(grep -m1 '<url>' $HOME/.m2/settings.xml 2>/dev/null"
         + " | sed -e 's/<url>//; s/<\\/url>//' | tr -d '[:space:]')\n");
+    // Gradle 源读 ~/.gradle/init.gradle 里的镜像 url（切换脚本写入），空格分隔避免 URL 里的 =
+    script.append("echo gradle $(grep -m1 \"maven { url '\" $HOME/.gradle/init.gradle 2>/dev/null"
+        + " | sed -e \"s/.*url '//\" -e \"s/'.*//\" | tr -d '[:space:]')\n");
     for (Section section : SECTIONS)
       for (Tool tool : section.tools()) script.append(tool.statusCheck()).append('\n');
     script.append(SSH_STATUS_CHECKS);

@@ -1,0 +1,29 @@
+#!/bin/sh
+# 切换 Gradle 源，写全局初始化脚本 ~/.gradle/init.gradle。设置页「Gradle 源」用。
+# Gradle 无独立镜像文件，仓库源在 init.gradle 的 allprojects/buildscript repositories
+# 里配（对所有项目生效）。即使 Gradle 未装也可先写入（与 pip/uv 一致）。
+set -e
+case "${1:-}" in
+  official) U=https://repo.maven.apache.org/maven2 ;;
+  aliyun)   U=https://maven.aliyun.com/repository/public ;;
+  tencent)  U=https://mirrors.cloud.tencent.com/nexus/repository/maven-public ;;
+  huawei)   U=https://mirrors.huaweicloud.com/repository/maven ;;
+  *) echo "用法: ubox-gradle-mirror official|aliyun|tencent|huawei"; exit 1 ;;
+esac
+
+mkdir -p "$HOME/.gradle"
+cat > "$HOME/.gradle/init.gradle" <<EOF
+// Gradle 全局源（设置页「Gradle 源」写入），对所有项目生效
+allprojects {
+    repositories {
+        maven { url '$U' }
+    }
+}
+buildscript {
+    repositories {
+        maven { url '$U' }
+    }
+}
+EOF
+
+echo "Gradle 源已切换到 $U"
