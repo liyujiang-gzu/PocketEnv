@@ -2,6 +2,7 @@ package dev.ubox.pocketenv;
 
 import dev.ubox.pocketenv.model.MirrorOption;
 import dev.ubox.pocketenv.model.Toolbox;
+import dev.ubox.pocketenv.model.UpdateMeta;
 import dev.ubox.pocketenv.runtime.TerminalService;
 import dev.ubox.pocketenv.runtime.UbuntuProcess;
 import dev.ubox.pocketenv.ui.EdgeToEdge;
@@ -36,6 +37,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -101,6 +103,11 @@ public class SettingsActivity extends Activity {
   private static final String AUTHOR_EMAIL = "1032694760@qq.com";
   /** 版本更新地址，跳转 GitHub Releases。 */
   private static final String RELEASES_URL = "https://github.com/liyujiang-gzu/PocketEnv/releases/";
+  /** 版本元数据地址（仓库根目录 update.json），按更新源选择。 */
+  private static final String META_URL_GITEE =
+      "https://gitee.com/li_yu_jiang/PocketEnv/raw/main/update.json";
+  private static final String META_URL_GITHUB =
+      "https://raw.githubusercontent.com/liyujiang-gzu/PocketEnv/main/update.json";
 
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
@@ -646,13 +653,103 @@ public class SettingsActivity extends Activity {
 
     LinearLayout versionRow = row("版本更新", null);
     subtitle(versionRow).setText(appVersion());
-    versionRow.setOnClickListener(v -> openUrl(RELEASES_URL));
+    versionRow.setOnClickListener(v -> chooseUpdateSource());
     list.addView(versionRow);
   }
 
   /** 版本名称 + 内部版本号，来自 Gradle 打包时注入的 BuildConfig 常量。 */
   private String appVersion() {
     return BuildConfig.VERSION_NAME + "（内部版本号 " + BuildConfig.VERSION_CODE + "）";
+  }
+
+  /** 弹窗选择更新源（默认 Gitee），选定后拉取对应平台的版本元数据。 */
+  private void chooseUpdateSource() {
+    String[] labels = {"Gitee（推荐，国内可达）", "GitHub"};
+    int checked = 0; // 默认 Gitee
+    new AlertDialog.Builder(this)
+        .setTitle("选择更新源")
+        .setSingleChoiceItems(labels, checked, null)
+        .setPositiveButton("检查更新", (dialog, which) -> {
+          int selected = ((AlertDialog) dialog).getListView().getCheckedItemPosition();
+          checkUpdate(selected == 1 ? META_URL_GITHUB : META_URL_GITEE,
+              selected == 1 ? UpdateSource.GITHUB : UpdateSource.GITEE);
+        })
+        .setNegativeButton("取消", null)
+        .show();
+  }
+
+  /** 更新源枚举，决定有新版本时跳转哪个平台的发布页。 */
+  private enum UpdateSource { GITEE, GITHUB }
+
+  /** 后台拉取版本元数据并解析，有新版本时弹窗提示。 */
+  private void checkUpdate(String metaUrl, UpdateSource source) {
+    statusLine.setText("正在检查更新…");
+    Async.run(this, "check-update",
+        () -> fetchText(metaUrl),
+        json -> {
+          statusLine.setText("");
+          try {
+            UpdateMeta meta = parseUpdateMeta(json);
+            if (!meta.isNewer(BuildConfig.VERSION_CODE)) {
+              Toast.makeText(this, "已是最新版本（" + BuildConfig.VERSION_NAME + "）",
+                  Toast.LENGTH_SHORT).show();
+              return;
+            }
+            showUpdateDialog(meta, source);
+          } catch (Exception error) {
+            Toast.makeText(this, "解析更新信息失败：" + error.getMessage(),
+                Toast.LENGTH_LONG).show();
+          }
+        },
+        error -> {
+          statusLine.setText("");
+          Toast.makeText(this, "检查更新失败：" + error.getMessage(), Toast.LENGTH_LONG).show();
+        });
+  }
+
+  /** 拉取远端文本（版本元数据 JSON）。 */
+  private static String fetchText(String url) throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) new java.net.URL(url).openConnection();
+    connection.setConnectTimeout(8000);
+    connection.setReadTimeout(8000);
+    connection.setRequestProperty("User-Agent", "PocketEnv-UpdateCheck");
+    try {
+      int code = connection.getResponseCode();
+      if (code != 200) throw new IOException("HTTP " + code);
+      try (InputStream in = connection.getInputStream()) {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int read;
+        while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+        return out.toString("UTF-8");
+      }
+    } finally {
+      connection.disconnect();
+    }
+  }
+
+  /** 解析版本元数据 JSON（org.json），字段缺失时给出兜底值。 */
+  private static UpdateMeta parseUpdateMeta(String json) throws org.json.JSONException {
+    org.json.JSONObject object = new org.json.JSONObject(json);
+    return new UpdateMeta(
+        object.optInt("versionCode", 0),
+        object.optString("versionName", ""),
+        object.optString("releaseNotes", ""),
+        object.optString("releaseUrlGitee", RELEASES_URL),
+        object.optString("releaseUrlGithub", RELEASES_URL));
+  }
+
+  /** 弹窗展示新版本与更新说明，确认后跳转所选平台的发布页。 */
+  private void showUpdateDialog(UpdateMeta meta, UpdateSource source) {
+    String url = source == UpdateSource.GITHUB ? meta.releaseUrlGithub() : meta.releaseUrlGitee();
+    String notes = meta.releaseNotes().isEmpty() ? "无更新说明" : meta.releaseNotes();
+    new AlertDialog.Builder(this)
+        .setTitle("发现新版本 " + meta.versionName())
+        .setMessage(notes + "\n\n当前版本：" + BuildConfig.VERSION_NAME
+            + "\n最新版本：" + meta.versionName())
+        .setPositiveButton("立即更新", (dialog, which) -> openUrl(url))
+        .setNegativeButton("稍后再说", null)
+        .show();
   }
 
   private void openUrl(String url) {
