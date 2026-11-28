@@ -56,26 +56,37 @@ public class DistroTest {
   }
 
   @Test
-  public void downloadSourcesAndChecksumsArePresent() {
+  public void downloadSourcesArePresent() {
     for (Distro d : Distro.values()) {
-      for (String url : d.urls()) {
-        assertNotNull(url);
-        assertTrue("下载源应为 https: " + url, url.startsWith("https://"));
-      }
-      assertNotNull(d.sha256);
-      assertEquals("SHA256 应为 64 位十六进制", 64, d.sha256.length());
-      assertTrue(d.sha256.matches("[0-9a-fA-F]{64}"));
+      assertTrue("至少一个下载源: " + d.id, d.sources.length > 0);
       assertNotNull(d.title);
       assertTrue(!d.title.isEmpty());
+      for (Distro.Source source : d.sources) {
+        assertNotNull(source.url);
+        assertTrue("下载源应为 https: " + source.url, source.url.startsWith("https://"));
+      }
     }
   }
 
   @Test
-  public void urlsListMirrorFirstThenFallback() {
+  public void fixedSourcesCarryValidSha256() {
     for (Distro d : Distro.values()) {
-      assertEquals(2, d.urls().length);
-      assertEquals(d.primaryUrl, d.urls()[0]);
-      assertEquals(d.fallbackUrl, d.urls()[1]);
+      for (Distro.Source source : d.sources) {
+        if (!(source instanceof Distro.ResolvedSource)) {
+          // 固定源必须带 64 位十六进制 SHA256
+          assertNotNull("固定源应有 SHA256: " + source.url, source.sha256);
+          assertEquals(64, source.sha256.length());
+          assertTrue(source.sha256.matches("[0-9a-fA-F]{64}"));
+        }
+      }
     }
+  }
+
+  @Test
+  public void fixedSourceResolvesToItself() throws Exception {
+    Distro.Source source = Distro.UBUNTU_24.sources[0];
+    Distro.Resolved resolved = source.resolve();
+    assertEquals(source.url, resolved.url);
+    assertEquals(source.sha256, resolved.sha256);
   }
 }

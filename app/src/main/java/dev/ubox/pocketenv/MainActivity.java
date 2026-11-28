@@ -34,8 +34,11 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -138,7 +141,7 @@ public class MainActivity extends Activity {
       return;
     }
     // 当前默认发行版未装但存在其他发行版，直接启动默认发行版的安装
-    installDistro(distro);
+    installDistro(distro, null);
   }
 
   /** 是否已有任一发行版安装完成。 */
@@ -147,20 +150,56 @@ public class MainActivity extends Activity {
     return false;
   }
 
-  /** 首次使用的发行版选择弹窗：三系统各自独立 rootfs，选一个下载安装。 */
+  /** 首次使用的发行版选择弹窗：三系统各自独立 rootfs，选一个下载安装；可选填自定义下载地址。 */
   private void showDistroPicker() {
     Distro[] distros = Distro.values();
-    String[] labels = new String[distros.length];
-    for (int i = 0; i < distros.length; i++) labels[i] = distros[i].title;
+    final int[] selected = {0}; // 默认选第一个发行版
+
+    // 可选的自定义下载地址：镜像不可达时，用户可填一个绝对 rootfs tarball URL
+    LinearLayout panel = new LinearLayout(this);
+    panel.setOrientation(LinearLayout.VERTICAL);
+    int pad = (int) (16 * getResources().getDisplayMetrics().density);
+    panel.setPadding(pad, pad, pad, 0);
+
+    TextView listTitle = new TextView(this);
+    listTitle.setText("选择要安装的发行版：");
+    listTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+    panel.addView(listTitle);
+
+    RadioGroup group = new RadioGroup(this);
+    for (int i = 0; i < distros.length; i++) {
+      RadioButton button = new RadioButton(this);
+      button.setText(distros[i].title);
+      button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+      button.setChecked(i == 0);
+      final int index = i;
+      button.setOnCheckedChangeListener((b, checked) -> {
+        if (checked) selected[0] = index;
+      });
+      group.addView(button);
+    }
+    panel.addView(group);
+
+    TextView hint = new TextView(this);
+    hint.setText("内置镜像不可用时，可填自定义 rootfs 下载地址（留空使用内置源）：");
+    hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+    panel.addView(hint);
+    EditText customInput = new EditText(this);
+    customInput.setHint("https://…/rootfs.tar.gz 或 .tar.xz");
+    customInput.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_URI);
+    panel.addView(customInput);
+
     new AlertDialog.Builder(this)
         .setTitle("选择发行版")
-        .setItems(labels, (d, which) -> onDistroSelected(distros[which]))
+        .setView(panel)
         .setCancelable(false)
+        .setPositiveButton("安装", (d, w) ->
+            onDistroSelected(distros[selected[0]], customInput.getText().toString().trim()))
         .show();
   }
 
   /** 选中发行版后：若存在旧版本数据，先提示备份再安装（旧目录不迁移、将被作废）。 */
-  private void onDistroSelected(Distro distro) {
+  private void onDistroSelected(Distro distro, String customUrl) {
     File legacy = new File(new File(getFilesDir(), "ubox"), "rootfs");
     if (legacy.isDirectory()) {
       new AlertDialog.Builder(this)
@@ -170,20 +209,20 @@ public class MainActivity extends Activity {
               + "如 /root 下有需要保留的文件，请先用旧版本的「设置 → 备份」导出，"
               + "或通过文件管理器（SAF）拷出，再继续安装新发行版。")
           .setNegativeButton("取消", (d, w) -> finish())
-          .setPositiveButton("我已备份，继续安装", (d, w) -> installDistro(distro))
+          .setPositiveButton("我已备份，继续安装", (d, w) -> installDistro(distro, customUrl))
           .setCancelable(false)
           .show();
     } else {
-      installDistro(distro);
+      installDistro(distro, customUrl);
     }
   }
 
-  /** 安装选定发行版：先提示旧数据备份，再下载 tarball 并解压。 */
-  private void installDistro(Distro distro) {
+  /** 安装选定发行版：先提示旧数据备份，再下载 tarball 并解压。customUrl 为可选自定义地址。 */
+  private void installDistro(Distro distro, String customUrl) {
     ActiveDistro.set(this, distro);
     showInstall("准备安装 " + distro.title + "…");
     Async.run(this, "rootfs-install", () -> {
-          File tarball = new RootfsDownloader(this, distro).download(
+          File tarball = new RootfsDownloader(this, distro).download(customUrl,
               (done, total) -> runOnUiThread(() -> {
                 installStatus.setText("正在下载 " + distro.title + " rootfs…");
                 installProgress.setProgress(total > 0 ? (int) (done * 1000 / total) : 0);
