@@ -1,7 +1,7 @@
 {
   "versionCode": 2026101,
   "versionName": "1.0.1",
-  "releaseNotes": "新增版本更新检查：可切换 Gitee / GitHub 更新源，有新版本时弹窗提示并跳转下载。",
+  "releaseNotes": "· 新增版本更新检查：可选 Gitee / GitHub 更新源，自动比对版本号，有新版弹窗提示并跳转下载\n· 新增备份与恢复：支持 Ubuntu 环境增量备份与一键还原，纳入空目录及改动过的 Base 文件，默认保存到 Download/backups\n· 修复：增量备份排除 /.l2s 规避符号链接循环；还原完成后提示需重启应用生效",
   "releaseUrlGitee": "https://gitee.com/li_yu_jiang/PocketEnv/releases",
   "releaseUrlGithub": "https://github.com/liyujiang-gzu/PocketEnv/releases"
 }
