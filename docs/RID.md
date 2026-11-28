@@ -9,6 +9,7 @@
 
 在 Android（arm64）上运行完整 Ubuntu 24.04 的「口袋开发环境」：免 root、免 Termux，通过 proot 启动 Ubuntu 容器，内置多语言编译环境与编程智能体。基于 [biyan113/ubuntu-box](https://github.com/biyan113/ubuntu-box)（MIT）重构。
 
+- **代码**：双平台同步，gitee 为主库，github 为从库。
 - **形态**：单个 Android 应用（`com.android.application`），无多模块。
 - **自举**：从 1.0.0 起可在自带的 Ubuntu 环境里完成自身「编辑 → 构建 → 打包 → 安装 → 真机运行」全流水线。
 
