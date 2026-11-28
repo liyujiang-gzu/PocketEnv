@@ -352,9 +352,10 @@ public class MainActivity extends Activity {
   private void deleteSession(TerminalSession session, AlertDialog dialog, Runnable refresh) {
     if (service == null) return;
     if (session.isRunning()) {
+      String sessionTitle = sessionLabel(sessionNumber(session), session.mSessionName, session.getTitle());
       new AlertDialog.Builder(this)
           .setTitle("结束运行中的会话？")
-          .setMessage("将终止该会话正在执行的命令（如安装或编译），未保存的输出会丢失。")
+          .setMessage("会话：" + sessionTitle + "\n\n将终止该会话正在执行的命令（如安装或编译），未保存的输出会丢失。")
           .setNegativeButton("取消", null)
           .setPositiveButton("结束", (d, which) -> doDeleteSession(session, dialog, refresh))
           .show();
