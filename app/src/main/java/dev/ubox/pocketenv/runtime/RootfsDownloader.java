@@ -1,7 +1,6 @@
 package dev.ubox.pocketenv.runtime;
 
 import android.content.Context;
-import dev.ubox.pocketenv.model.Distro;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -16,14 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 从远程下载发行版 rootfs tarball：逐个下载源尝试，解析或下载失败自动换下一个；
- * 下载完成后做 SHA256 校验，不匹配则删除并报错，绝不把损坏的 rootfs 解压进环境。
+ * 下载 Ubuntu rootfs tarball：内置源（清华镜像 + 官方兜底）逐个尝试，也可由用户提供自定义
+ * 绝对下载地址；下载完成后做 SHA256 校验，不匹配则删除并报错，绝不把损坏的 rootfs
+ * 解压进环境。
  *
- * <p>rootfs 外置（不打进 APK），首次安装某发行版时按需下载一次，缓存到应用私有目录，
- * 解压成功后即删除 tarball 释放空间。
+ * <p>rootfs 外置（不打进 APK），首次启动按需下载一次，缓存到应用私有目录，解压成功后即
+ * 删除 tarball 释放空间。
  *
- * <p>除发行版内置的镜像/官方源外，还支持用户输入的绝对下载地址：这类地址的 SHA256
- * 事先未知，故跳过校验和比对，改为信任用户显式提供的来源。
+ * <p>自定义地址的 SHA256 事先未知，故跳过校验和比对，改为信任用户显式提供的来源。
  */
 public final class RootfsDownloader {
   /** 下载进度回调：done/total 为当前已下载字节数与 tarball 总大小。 */
@@ -31,37 +30,63 @@ public final class RootfsDownloader {
     void update(long done, long total);
   }
 
+  /** 一个内置下载源：显示名 + URL + 预期 SHA256（Ubuntu Base 发布时固定）。 */
+  public static final class Source {
+    public final String name, url, sha256;
+
+    Source(String name, String url, String sha256) {
+      this.name = name;
+      this.url = url;
+      this.sha256 = sha256;
+    }
+  }
+
+  private static final String SHA256 =
+      "a91d5a93010193712d346d761372b7c9db6dfcf093893161c64ca107f05914f2";
+
+  /** 内置源：国内镜像优先，官方兜底。 */
+  public static final Source[] SOURCES = {
+    new Source(
+        "清华镜像（推荐）",
+        "https://mirrors.tuna.tsinghua.edu.cn/ubuntu-cdimage/ubuntu-base/releases/24.04/release/"
+            + "ubuntu-base-24.04.5-base-arm64.tar.gz",
+        SHA256),
+    new Source(
+        "官方源",
+        "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
+            + "ubuntu-base-24.04.5-base-arm64.tar.gz",
+        SHA256),
+  };
+
   private static final int CONNECT_TIMEOUT_MS = 15_000;
   private static final int READ_TIMEOUT_MS = 30_000;
 
   private final Context context;
-  private final Distro distro;
 
-  public RootfsDownloader(Context context, Distro distro) {
+  public RootfsDownloader(Context context) {
     this.context = context.getApplicationContext();
-    this.distro = distro;
   }
 
   /**
    * 下载并校验 rootfs tarball，返回本地文件。
    *
-   * <p>逐个源解析（动态源在此抓最新版本）并下载到 .part 临时文件，全部完成且校验通过后
-   * 才重命名为最终文件；中途失败或校验不通过则换下一个源。所有源均不可达时抛
+   * <p>优先尝试用户自定义地址（如有），其次用户选定的内置源，最后其余内置源兜底；逐个
+   * 下载到 .part 临时文件，校验通过后才重命名为最终文件。所有源均不可达时抛
    * {@link IOException}。
    *
-   * @param customUrl 用户输入的绝对下载地址；非空时优先使用（跳过 SHA256 校验），
-   *                  失败仍回退到内置源
+   * @param preferredSource 用户选定的内置源下标（{@link #SOURCES}）；越界时从头开始
+   * @param customUrl       用户输入的绝对下载地址；非空时优先使用（跳过 SHA256 校验）
    */
-  public File download(String customUrl, Progress progress) throws IOException {
-    File cache = new File(context.getCacheDir(), distro.id + "-rootfs.tarball");
+  public File download(int preferredSource, String customUrl, Progress progress)
+      throws IOException {
+    File cache = new File(context.getCacheDir(), "ubuntu-rootfs.tarball");
     File partial = new File(cache.getPath() + ".part");
     IOException lastError = null;
 
-    for (Attempt attempt : attempts(customUrl)) {
+    for (Attempt attempt : attempts(preferredSource, customUrl)) {
       try {
         downloadOne(attempt.url, partial, progress);
         if (attempt.sha256 != null) verify(partial, attempt.sha256);
-        // 校验通过才落定为最终 tarball；下次解压失败重试时不必重新下载
         if (cache.exists()) cache.delete();
         if (!partial.renameTo(cache)) throw new IOException("无法保存下载的 rootfs");
         return cache;
@@ -70,24 +95,24 @@ public final class RootfsDownloader {
         partial.delete(); // 换下一个源重新下，不残留半截数据
       }
     }
-    throw new IOException("下载 " + distro.title + " rootfs 失败："
+    throw new IOException("下载 Ubuntu rootfs 失败："
         + (lastError != null ? lastError.getMessage() : "所有下载源均不可达"));
   }
 
-  /** 组装待尝试的下载源：用户自定义地址优先，其后是发行版内置源逐个解析。 */
-  private List<Attempt> attempts(String customUrl) {
+  /** 组装待尝试的下载源：自定义地址优先，其次选定源，最后其余内置源兜底。 */
+  private List<Attempt> attempts(int preferredSource, String customUrl) {
     List<Attempt> list = new ArrayList<>();
     if (customUrl != null && !customUrl.trim().isEmpty()) {
       // 用户显式提供的地址，SHA256 未知，跳过校验和比对
       list.add(new Attempt(customUrl.trim(), null));
     }
-    for (Distro.Source source : distro.sources) {
-      try {
-        Distro.Resolved resolved = source.resolve();
-        list.add(new Attempt(resolved.url, resolved.sha256));
-      } catch (IOException unresolved) {
-        // 该源当前不可用（如镜像滚动、网络不通），跳过换下一个
-      }
+    if (preferredSource >= 0 && preferredSource < SOURCES.length) {
+      Source source = SOURCES[preferredSource];
+      list.add(new Attempt(source.url, source.sha256));
+    }
+    for (int i = 0; i < SOURCES.length; i++) {
+      if (i == preferredSource) continue;
+      list.add(new Attempt(SOURCES[i].url, SOURCES[i].sha256));
     }
     return list;
   }

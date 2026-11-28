@@ -20,33 +20,27 @@ import java.util.Set;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
-import dev.ubox.pocketenv.model.Distro;
 
 /**
- * 某个发行版 rootfs 的目录布局、首次解压和每次启动前的修正。
+ * Ubuntu rootfs 的目录布局、首次解压和每次启动前的修正。
  *
- * <p>rootfs 外置（不打进 APK），每个发行版在 {@code files/ubox/<distroId>/} 下有独立
- * 目录，互不干扰。首次解压来自下载好的 tarball（gzip 或 xz），不再读取 APK 内置资产。
+ * <p>rootfs 外置（不打进 APK），首次启动按需远程下载到应用私有目录；解压自下载好的
+ * gzip tarball，不再读取 APK 内置资产。
  */
 public final class Rootfs {
   private static final String MARKER = ".ubox-installed";
 
-  public final Distro distro;
   public final File base, rootfs, lib, tmp;
 
-  public Rootfs(Context context, Distro distro) {
-    this.distro = distro;
-    base = new File(new File(context.getFilesDir(), "ubox"), distro.id);
+  public Rootfs(Context context) {
+    base = new File(context.getFilesDir(), "ubox");
     rootfs = new File(base, "rootfs");
     lib = new File(base, "lib");
     tmp = new File(base, "tmp");
   }
 
-  /** 判断该发行版是否已安装：标记文件存在，且登录 shell 存在（Alpine 是 ash，其余是 bash）。 */
   public boolean isInstalled() {
-    return new File(rootfs, MARKER).isFile()
-        && new File(rootfs, distro.shell().substring(1)).exists();
+    return new File(rootfs, MARKER).isFile() && new File(rootfs, "bin/bash").exists();
   }
 
   public interface Progress {
@@ -65,7 +59,7 @@ public final class Rootfs {
     try (CountingInputStream counted =
             new CountingInputStream(new BufferedInputStream(new FileInputStream(tarball), 1 << 16));
         TarArchiveInputStream tar =
-            new TarArchiveInputStream(decompressor(distro.compress, counted))) {
+            new TarArchiveInputStream(new GzipCompressorInputStream(counted))) {
       byte[] buffer = new byte[1 << 16];
       long lastReport = 0;
       TarArchiveEntry entry;
@@ -95,7 +89,7 @@ public final class Rootfs {
         // 设备节点、FIFO 在 proot 里由宿主 /dev 提供，直接跳过
         if (counted.count - lastReport > 256 * 1024) {
           lastReport = counted.count;
-          progress.update("正在解压 " + distro.title + "…", counted.count, total);
+          progress.update("正在解压 Ubuntu…", counted.count, total);
         }
       }
     }
@@ -116,18 +110,10 @@ public final class Rootfs {
 
     configure(staging);
     writeBaseManifest(context, staging);
-    write(new File(staging, MARKER), distro.title);
+    write(new File(staging, MARKER), "Ubuntu 24.04");
 
     deleteRecursively(rootfs);
     if (!staging.renameTo(rootfs)) throw new IOException("无法启用新的 rootfs");
-  }
-
-  /** 按发行版压缩格式选择解压流：Ubuntu/Alpine 走 gzip，Debian LXC 镜像走 xz。 */
-  private static InputStream decompressor(Distro.Compress compress, InputStream in)
-      throws IOException {
-    return compress == Distro.Compress.XZ
-        ? new XZCompressorInputStream(in)
-        : new GzipCompressorInputStream(in);
   }
 
   /** 只在首次安装时写入，之后归用户管理。 */
@@ -138,12 +124,10 @@ public final class Rootfs {
     write(
         new File(root, "etc/hosts"),
         "127.0.0.1 localhost\n::1 localhost ip6-localhost ip6-loopback\n");
-    if (distro.pkg == Distro.Pkg.APT) {
-      // proot 里没有真正的 setgroups/setuid，apt 降权到 _apt 会失败
-      write(
-          new File(root, "etc/apt/apt.conf.d/99ubox"),
-          "APT::Sandbox::User \"root\";\nAcquire::Retries \"3\";\n");
-    }
+    // proot 里没有真正的 setgroups/setuid，apt 降权到 _apt 会失败
+    write(
+        new File(root, "etc/apt/apt.conf.d/99ubox"),
+        "APT::Sandbox::User \"root\";\nAcquire::Retries \"3\";\n");
     File tmpDir = new File(root, "tmp");
     mkdirs(tmpDir);
     chmod(tmpDir, 01777);
@@ -156,15 +140,9 @@ public final class Rootfs {
    * 无法追溯，会作为新基线，不会进入本次备份。
    */
   private void writeBaseManifest(Context context, File root) throws IOException {
-    String manifest;
-    try {
-      manifest = readAsset(context, "guest/base-files.txt");
-    } catch (IOException absent) {
-      return; // 非 Ubuntu（Debian/Alpine）暂无基线清单，跳过增量备份基线
-    }
     StringBuilder out = new StringBuilder();
     Set<String> dirs = new java.util.TreeSet<>();
-    for (String path : manifest.split("\n")) {
+    for (String path : readAsset(context, "guest/base-files.txt").split("\n")) {
       path = path.trim();
       if (path.isEmpty()) continue;
       for (int slash = path.indexOf('/'); slash > 0; slash = path.indexOf('/', slash + 1))

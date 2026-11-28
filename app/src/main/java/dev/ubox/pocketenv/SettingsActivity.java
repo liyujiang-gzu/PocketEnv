@@ -1,10 +1,8 @@
 package dev.ubox.pocketenv;
 
-import dev.ubox.pocketenv.model.Distro;
 import dev.ubox.pocketenv.model.MirrorOption;
 import dev.ubox.pocketenv.model.Toolbox;
 import dev.ubox.pocketenv.model.UpdateMeta;
-import dev.ubox.pocketenv.runtime.ActiveDistro;
 import dev.ubox.pocketenv.runtime.TerminalService;
 import dev.ubox.pocketenv.runtime.UbuntuProcess;
 import dev.ubox.pocketenv.ui.EdgeToEdge;
@@ -169,65 +167,53 @@ public class SettingsActivity extends Activity {
     statusLine.setPadding(0, dp(8), 0, dp(4));
     list.addView(statusLine);
 
-    // Alpine（路线 A）仅保证能启动进 shell，apt/bash 专用的软件源与工具安装暂不可用
-    boolean alpine = ActiveDistro.get(this).pkg == Distro.Pkg.APK;
-    if (alpine) {
-      TextView notice = text(
-          "当前为 Alpine 环境（开发中）：已可启动进 shell，软件源切换与软件安装将在后续版本支持。",
-          13, Theme.TEXT_DIM);
-      notice.setPadding(0, dp(8), 0, dp(16));
-      list.addView(notice);
-    }
+    list.addView(header("软件源"));
+    LinearLayout mirrorRow = row("APT 源", null);
+    mirrorValue = subtitle(mirrorRow);
+    mirrorValue.setText("读取中…");
+    mirrorRow.setOnClickListener(v -> chooseMirror());
+    list.addView(mirrorRow);
 
-    if (!alpine) {
-      list.addView(header("软件源"));
-      LinearLayout mirrorRow = row("APT 源", null);
-      mirrorValue = subtitle(mirrorRow);
-      mirrorValue.setText("读取中…");
-      mirrorRow.setOnClickListener(v -> chooseMirror());
-      list.addView(mirrorRow);
+    LinearLayout npmRow = row("NPM 源", null);
+    npmRegistryValue = subtitle(npmRow);
+    npmRegistryValue.setText("读取中…");
+    npmRow.setOnClickListener(v -> chooseNpmRegistry());
+    list.addView(npmRow);
 
-      LinearLayout npmRow = row("NPM 源", null);
-      npmRegistryValue = subtitle(npmRow);
-      npmRegistryValue.setText("读取中…");
-      npmRow.setOnClickListener(v -> chooseNpmRegistry());
-      list.addView(npmRow);
+    LinearLayout pypiRow = row("PyPI 源", null);
+    pypiMirrorValue = subtitle(pypiRow);
+    pypiMirrorValue.setText("读取中…");
+    pypiRow.setOnClickListener(v -> choosePypiMirror());
+    list.addView(pypiRow);
 
-      LinearLayout pypiRow = row("PyPI 源", null);
-      pypiMirrorValue = subtitle(pypiRow);
-      pypiMirrorValue.setText("读取中…");
-      pypiRow.setOnClickListener(v -> choosePypiMirror());
-      list.addView(pypiRow);
+    LinearLayout goRow = row("GO 源", null);
+    goProxyValue = subtitle(goRow);
+    goProxyValue.setText("读取中…");
+    goRow.setOnClickListener(v -> chooseGoProxy());
+    list.addView(goRow);
 
-      LinearLayout goRow = row("GO 源", null);
-      goProxyValue = subtitle(goRow);
-      goProxyValue.setText("读取中…");
-      goRow.setOnClickListener(v -> chooseGoProxy());
-      list.addView(goRow);
+    LinearLayout mavenRow = row("Maven 源", null);
+    mavenMirrorValue = subtitle(mavenRow);
+    mavenMirrorValue.setText("读取中…");
+    mavenRow.setOnClickListener(v -> chooseMavenMirror());
+    list.addView(mavenRow);
 
-      LinearLayout mavenRow = row("Maven 源", null);
-      mavenMirrorValue = subtitle(mavenRow);
-      mavenMirrorValue.setText("读取中…");
-      mavenRow.setOnClickListener(v -> chooseMavenMirror());
-      list.addView(mavenRow);
+    LinearLayout gradleRow = row("Gradle 源", null);
+    gradleMirrorValue = subtitle(gradleRow);
+    gradleMirrorValue.setText("读取中…");
+    gradleRow.setOnClickListener(v -> chooseGradleMirror());
+    list.addView(gradleRow);
 
-      LinearLayout gradleRow = row("Gradle 源", null);
-      gradleMirrorValue = subtitle(gradleRow);
-      gradleMirrorValue.setText("读取中…");
-      gradleRow.setOnClickListener(v -> chooseGradleMirror());
-      list.addView(gradleRow);
-
-      for (Toolbox.Section section : Toolbox.SECTIONS) {
-        list.addView(header(section.title()));
-        for (Toolbox.Tool tool : section.tools()) {
-          Button action = actionButton();
-          action.setOnClickListener(v -> onToolClicked(tool));
-          buttons.put(tool.id(), action);
-          LinearLayout row = row(tool.title(), action);
-          subtitle(row).setText(tool.summary());
-          row.setOnClickListener(v -> onToolClicked(tool));
-          list.addView(row);
-        }
+    for (Toolbox.Section section : Toolbox.SECTIONS) {
+      list.addView(header(section.title()));
+      for (Toolbox.Tool tool : section.tools()) {
+        Button action = actionButton();
+        action.setOnClickListener(v -> onToolClicked(tool));
+        buttons.put(tool.id(), action);
+        LinearLayout row = row(tool.title(), action);
+        subtitle(row).setText(tool.summary());
+        row.setOnClickListener(v -> onToolClicked(tool));
+        list.addView(row);
       }
     }
 
@@ -270,11 +256,6 @@ public class SettingsActivity extends Activity {
   protected void onResume() {
     super.onResume();
     updatePermissionUi();
-    if (ActiveDistro.get(this).pkg == Distro.Pkg.APK) {
-      // Alpine（路线 A）无 apt/dpkg，状态检测脚本不适用，直接显示占位文案
-      statusLine.setText("Alpine 环境（开发中）");
-      return;
-    }
     refreshStatus();
   }
 
@@ -652,7 +633,6 @@ public class SettingsActivity extends Activity {
   }
 
   private boolean ignoringBatteryOptimizations() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
     PowerManager power = (PowerManager) getSystemService(android.content.Context.POWER_SERVICE);
     return power != null && power.isIgnoringBatteryOptimizations(getPackageName());
   }

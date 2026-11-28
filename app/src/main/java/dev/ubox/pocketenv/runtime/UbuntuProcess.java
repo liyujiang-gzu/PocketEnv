@@ -1,7 +1,6 @@
 package dev.ubox.pocketenv.runtime;
 
 import android.content.Context;
-import dev.ubox.pocketenv.model.Distro;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -36,8 +35,7 @@ public final class UbuntuProcess {
   }
 
   public static Proot newProot(Context context) throws IOException {
-    Distro distro = ActiveDistro.get(context);
-    Rootfs rootfs = new Rootfs(context, distro);
+    Rootfs rootfs = new Rootfs(context);
     rootfs.refreshGuestFiles(context);
     Proot proot = new Proot(context, rootfs);
     proot.prepare();

@@ -1,7 +1,5 @@
 package dev.ubox.pocketenv;
 
-import dev.ubox.pocketenv.model.Distro;
-import dev.ubox.pocketenv.runtime.ActiveDistro;
 import dev.ubox.pocketenv.runtime.Rootfs;
 import dev.ubox.pocketenv.runtime.RootfsDownloader;
 import dev.ubox.pocketenv.runtime.TerminalService;
@@ -129,47 +127,34 @@ public class MainActivity extends Activity {
   // ---------------------------------------------------------------- 安装与启动
 
   private void ensureInstalledThenStart() {
-    Distro distro = ActiveDistro.get(this);
-    Rootfs rootfs = new Rootfs(this, distro);
+    Rootfs rootfs = new Rootfs(this);
     if (rootfs.isInstalled()) {
       startTerminal();
       return;
     }
-    // 没有任何已安装发行版：展示发行版选择（首次使用，或旧数据已重置）
-    if (!anyDistroInstalled()) {
-      showDistroPicker();
-      return;
-    }
-    // 当前默认发行版未装但存在其他发行版，直接启动默认发行版的安装
-    installDistro(distro, null);
+    // 未安装：先让用户选下载源（或自定义地址）再下载
+    showSourcePicker();
   }
 
-  /** 是否已有任一发行版安装完成。 */
-  private boolean anyDistroInstalled() {
-    for (Distro d : Distro.values()) if (new Rootfs(this, d).isInstalled()) return true;
-    return false;
-  }
+  /** 首次使用的下载源选择弹窗：内置镜像或自定义地址，选好后下载安装。 */
+  private void showSourcePicker() {
+    RootfsDownloader.Source[] sources = RootfsDownloader.SOURCES;
+    final int[] selected = {0}; // 默认选第一个源
 
-  /** 首次使用的发行版选择弹窗：三系统各自独立 rootfs，选一个下载安装；可选填自定义下载地址。 */
-  private void showDistroPicker() {
-    Distro[] distros = Distro.values();
-    final int[] selected = {0}; // 默认选第一个发行版
-
-    // 可选的自定义下载地址：镜像不可达时，用户可填一个绝对 rootfs tarball URL
     LinearLayout panel = new LinearLayout(this);
     panel.setOrientation(LinearLayout.VERTICAL);
     int pad = (int) (16 * getResources().getDisplayMetrics().density);
     panel.setPadding(pad, pad, pad, 0);
 
     TextView listTitle = new TextView(this);
-    listTitle.setText("选择要安装的发行版：");
+    listTitle.setText("选择 Ubuntu rootfs 下载源：");
     listTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
     panel.addView(listTitle);
 
     RadioGroup group = new RadioGroup(this);
-    for (int i = 0; i < distros.length; i++) {
+    for (int i = 0; i < sources.length; i++) {
       RadioButton button = new RadioButton(this);
-      button.setText(distros[i].title);
+      button.setText(sources[i].name);
       button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
       button.setChecked(i == 0);
       final int index = i;
@@ -181,53 +166,53 @@ public class MainActivity extends Activity {
     panel.addView(group);
 
     TextView hint = new TextView(this);
-    hint.setText("内置镜像不可用时，可填自定义 rootfs 下载地址（留空使用内置源）：");
+    hint.setText("内置镜像不可用时，可填自定义 rootfs 下载地址（留空使用上方所选源）：");
     hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
     panel.addView(hint);
     EditText customInput = new EditText(this);
-    customInput.setHint("https://…/rootfs.tar.gz 或 .tar.xz");
+    customInput.setHint("https://…/ubuntu-base-24.04-base-arm64.tar.gz");
     customInput.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_URI);
     panel.addView(customInput);
 
     new AlertDialog.Builder(this)
-        .setTitle("选择发行版")
+        .setTitle("安装 Ubuntu 环境")
         .setView(panel)
         .setCancelable(false)
-        .setPositiveButton("安装", (d, w) ->
-            onDistroSelected(distros[selected[0]], customInput.getText().toString().trim()))
+        .setPositiveButton("下载并安装", (d, w) ->
+            onSourceSelected(selected[0], customInput.getText().toString().trim()))
         .show();
   }
 
-  /** 选中发行版后：若存在旧版本数据，先提示备份再安装（旧目录不迁移、将被作废）。 */
-  private void onDistroSelected(Distro distro, String customUrl) {
+  /** 选好下载源后：若存在旧版本数据，先提示备份再安装（旧目录不迁移、将被覆盖）。 */
+  private void onSourceSelected(int sourceIndex, String customUrl) {
     File legacy = new File(new File(getFilesDir(), "ubox"), "rootfs");
     if (legacy.isDirectory()) {
       new AlertDialog.Builder(this)
           .setTitle("先备份旧环境数据")
-          .setMessage("检测到旧版本创建的环境数据。本次升级后发行版改为按需下载、各自独立，"
-              + "旧目录不再使用也不会自动迁移，稍后重置或清理时会一并删除。\n\n"
+          .setMessage("检测到旧版本创建的环境数据。安装新环境会覆盖旧目录且不会自动迁移。\n\n"
               + "如 /root 下有需要保留的文件，请先用旧版本的「设置 → 备份」导出，"
-              + "或通过文件管理器（SAF）拷出，再继续安装新发行版。")
+              + "或通过文件管理器（SAF）拷出，再继续安装。")
           .setNegativeButton("取消", (d, w) -> finish())
-          .setPositiveButton("我已备份，继续安装", (d, w) -> installDistro(distro, customUrl))
+          .setPositiveButton("我已备份，继续安装", (d, w) -> install(sourceIndex, customUrl))
           .setCancelable(false)
           .show();
     } else {
-      installDistro(distro, customUrl);
+      install(sourceIndex, customUrl);
     }
   }
 
-  /** 安装选定发行版：先提示旧数据备份，再下载 tarball 并解压。customUrl 为可选自定义地址。 */
-  private void installDistro(Distro distro, String customUrl) {
-    ActiveDistro.set(this, distro);
-    showInstall("准备安装 " + distro.title + "…");
+  /** 下载并解压 Ubuntu rootfs。customUrl 非空时优先使用自定义地址。 */
+  private void install(int sourceIndex, String customUrl) {
+    showInstall("准备下载 Ubuntu rootfs…");
     Async.run(this, "rootfs-install", () -> {
-          File tarball = new RootfsDownloader(this, distro).download(customUrl,
-              (done, total) -> runOnUiThread(() -> {
-                installStatus.setText("正在下载 " + distro.title + " rootfs…");
-                installProgress.setProgress(total > 0 ? (int) (done * 1000 / total) : 0);
-              }));
-          new Rootfs(this, distro).install(this, tarball, (stage, done, total) ->
+          File tarball =
+              new RootfsDownloader(this)
+                  .download(sourceIndex, customUrl,
+                      (done, total) -> runOnUiThread(() -> {
+                        installStatus.setText("正在下载 Ubuntu rootfs…");
+                        installProgress.setProgress(total > 0 ? (int) (done * 1000 / total) : 0);
+                      }));
+          new Rootfs(this).install(this, tarball, (stage, done, total) ->
               runOnUiThread(() -> {
                 installStatus.setText(stage);
                 installProgress.setProgress(total > 0 ? (int) (done * 1000 / total) : 0);
@@ -472,10 +457,9 @@ public class MainActivity extends Activity {
       for (TerminalSession s : List.copyOf(service.sessions())) service.removeSession(s);
     }
     showInstall("正在删除旧环境…");
-    Distro distro = ActiveDistro.get(this);
     Async.run(this, "rootfs-reset",
         () -> {
-          new Rootfs(this, distro).delete();
+          new Rootfs(this).delete();
           return null;
         },
         ignored -> {

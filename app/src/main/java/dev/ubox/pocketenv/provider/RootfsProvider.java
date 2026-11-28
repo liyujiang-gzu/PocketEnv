@@ -1,10 +1,8 @@
 package dev.ubox.pocketenv.provider;
 
 import dev.ubox.pocketenv.R;
-import dev.ubox.pocketenv.runtime.ActiveDistro;
 import dev.ubox.pocketenv.runtime.Rootfs;
 
-import android.content.Context;
 import android.provider.DocumentsProvider;
 import android.database.Cursor;
 import android.database.MatrixCursor;
@@ -52,17 +50,12 @@ public final class RootfsProvider extends DocumentsProvider {
     Document.COLUMN_LAST_MODIFIED,
   };
 
-  private Context context;
+  private Rootfs rootfs;
 
   @Override
   public boolean onCreate() {
-    context = getContext();
+    rootfs = new Rootfs(getContext());
     return true;
-  }
-
-  /** SAF 只在 onCreate 初始化一次，但当前发行版可能被切换，每次都按 active 重新取。 */
-  private Rootfs rootfs() {
-    return new Rootfs(context, ActiveDistro.get(context));
   }
 
   @Override
@@ -103,7 +96,7 @@ public final class RootfsProvider extends DocumentsProvider {
           row.add("*/*");
           break;
         case Root.COLUMN_AVAILABLE_BYTES:
-          row.add(rootfs().rootfs.getUsableSpace());
+          row.add(rootfs.rootfs.getUsableSpace());
           break;
         default:
           row.add(null);
@@ -215,17 +208,17 @@ public final class RootfsProvider extends DocumentsProvider {
   /** documentId 是相对 rootfs 的路径；ROOT_ID 表示根目录。 */
   private File fileFor(String documentId) {
     if (documentId == null) return null;
-    if (ROOT_ID.equals(documentId)) return rootfs().rootfs;
+    if (ROOT_ID.equals(documentId)) return rootfs.rootfs;
     if (documentId.isEmpty() || documentId.startsWith("/")) return null;
     for (String part : documentId.split("/", -1))
       if (part.isEmpty() || part.equals(".") || part.equals("..")) return null;
-    File file = new File(rootfs().rootfs, documentId);
+    File file = new File(rootfs.rootfs, documentId);
     return insideRootfs(file) ? file : null;
   }
 
   private boolean insideRootfs(File file) {
     try {
-      String root = rootfs().rootfs.getCanonicalPath();
+      String root = rootfs.rootfs.getCanonicalPath();
       String path = file.getCanonicalPath();
       return path.equals(root) || path.startsWith(root + File.separator);
     } catch (IOException error) {
@@ -277,7 +270,7 @@ public final class RootfsProvider extends DocumentsProvider {
   /** 只有 /root 下的节点可写。用规范化路径判断，避免 /root 里的符号链接指到别处。 */
   private boolean writable(File file) {
     try {
-      String root = new File(rootfs().rootfs, "root").getCanonicalPath();
+      String root = new File(rootfs.rootfs, "root").getCanonicalPath();
       String path = file.getCanonicalPath();
       return path.equals(root) || path.startsWith(root + File.separator);
     } catch (IOException error) {
