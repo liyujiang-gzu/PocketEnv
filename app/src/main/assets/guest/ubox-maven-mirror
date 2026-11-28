@@ -1,0 +1,32 @@
+#!/bin/sh
+# 切换 Maven 源，写用户级 ~/.m2/settings.xml。设置页「Maven 源」用。
+# Maven 无独立镜像文件，仓库源在 settings.xml 的 <mirror> 里配；mirrorOf=central
+# 只代理中央仓库，不影响公司私服等特殊仓库。即使 Maven 未装也可先写入（与 pip/uv 一致）。
+set -e
+case "${1:-}" in
+  official) U=https://repo.maven.apache.org/maven2 ;;
+  aliyun)   U=https://maven.aliyun.com/repository/public ;;
+  tencent)  U=https://mirrors.cloud.tencent.com/nexus/repository/maven-public ;;
+  huawei)   U=https://mirrors.huaweicloud.com/repository/maven ;;
+  *) echo "用法: ubox-maven-mirror official|aliyun|tencent|huawei"; exit 1 ;;
+esac
+
+mkdir -p "$HOME/.m2"
+cat > "$HOME/.m2/settings.xml" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>ubox-maven</id>
+      <name>ubox maven mirror</name>
+      <url>$U</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>
+EOF
+
+echo "Maven 源已切换到 $U（mirrorOf=central）"

@@ -189,6 +189,9 @@ public final class Toolbox {
     // GO 源读 GOPROXY（切换脚本写入 /etc/profile.d/goproxy.sh），空格分隔避免 URL 里的 =
     script.append("echo goproxy $(grep -m1 '^export GOPROXY' /etc/profile.d/goproxy.sh 2>/dev/null"
         + " | sed -e 's/^export GOPROXY=//' -e 's/,direct$//' -e 's/\"//g')\n");
+    // Maven 源读 ~/.m2/settings.xml 里 mirror 的 url（切换脚本写入），空格分隔避免 URL 里的 =
+    script.append("echo maven $(grep -m1 '<url>' $HOME/.m2/settings.xml 2>/dev/null"
+        + " | sed -e 's/<url>//; s/<\\/url>//' | tr -d '[:space:]')\n");
     for (Section section : SECTIONS)
       for (Tool tool : section.tools()) script.append(tool.statusCheck()).append('\n');
     script.append(SSH_STATUS_CHECKS);

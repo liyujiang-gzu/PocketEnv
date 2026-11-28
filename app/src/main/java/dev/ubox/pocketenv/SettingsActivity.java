@@ -95,6 +95,18 @@ public class SettingsActivity extends Activity {
         "https://goproxy.cn", "goproxy"),
   };
 
+  /** Maven 源：切换走 ubox-maven-mirror，写 ~/.m2/settings.xml（mirrorOf=central）。 */
+  private static final MirrorOption[] MAVEN_MIRRORS = {
+    new MirrorOption("official", "官方（默认）", "https://repo.maven.apache.org/maven2",
+        "https://repo.maven.apache.org/maven2", "maven-mirror"),
+    new MirrorOption("aliyun", "阿里云（推荐）", "https://maven.aliyun.com/repository/public",
+        "https://maven.aliyun.com/repository/public", "maven-mirror"),
+    new MirrorOption("tencent", "腾讯云", "https://mirrors.cloud.tencent.com/nexus/repository/maven-public",
+        "https://mirrors.cloud.tencent.com/nexus/repository/maven-public", "maven-mirror"),
+    new MirrorOption("huawei", "华为云", "https://mirrors.huaweicloud.com/repository/maven",
+        "https://mirrors.huaweicloud.com/repository/maven", "maven-mirror"),
+  };
+
   /** 项目 GitHub 开源地址，项目源码跳转用。 */
   private static final String GITHUB_URL = "https://github.com/liyujiang-gzu/PocketEnv";
   /** 意见反馈地址，跳转 GitEE Issues。 */
@@ -112,6 +124,7 @@ public class SettingsActivity extends Activity {
   private final Map<String, Boolean> installed = new HashMap<>();
   private final Map<String, Button> buttons = new HashMap<>();
   private TextView mirrorValue, npmRegistryValue, pypiMirrorValue, goProxyValue, statusLine;
+  private TextView mavenMirrorValue;
   private Button storageButton, batteryButton;
   private TerminalService service;
   private SshSection sshSection;
@@ -165,6 +178,12 @@ public class SettingsActivity extends Activity {
     goProxyValue.setText("读取中…");
     goRow.setOnClickListener(v -> chooseGoProxy());
     list.addView(goRow);
+
+    LinearLayout mavenRow = row("Maven 源", null);
+    mavenMirrorValue = subtitle(mavenRow);
+    mavenMirrorValue.setText("读取中…");
+    mavenRow.setOnClickListener(v -> chooseMavenMirror());
+    list.addView(mavenRow);
 
     for (Toolbox.Section section : Toolbox.SECTIONS) {
       list.addView(header(section.title()));
@@ -258,6 +277,7 @@ public class SettingsActivity extends Activity {
     String npmRegistry = "";
     String pypiMirror = "";
     String goProxy = "";
+    String mavenMirror = "";
     int keys = 0;
     for (String line : output.split("\n")) {
       // npm 源行是空格分隔（URL 含 = ），单独处理
@@ -275,6 +295,11 @@ public class SettingsActivity extends Activity {
         goProxy = line.substring("goproxy ".length()).trim();
         continue;
       }
+      // Maven 源行同样空格分隔
+      if (line.startsWith("maven ")) {
+        mavenMirror = line.substring("maven ".length()).trim();
+        continue;
+      }
       int split = line.indexOf('=');
       if (split <= 0) continue;
       String key = line.substring(0, split), value = line.substring(split + 1).trim();
@@ -282,18 +307,19 @@ public class SettingsActivity extends Activity {
       else if (key.equals("sshkeys")) keys = parseInt(value);
       else result.put(key, value.equals("1"));
     }
-    applyStatus(result, mirror, npmRegistry, pypiMirror, goProxy, keys);
+    applyStatus(result, mirror, npmRegistry, pypiMirror, goProxy, mavenMirror, keys);
   }
 
   /** 按解析结果刷新各分区。包内可见，便于单独验证解析逻辑。 */
   void applyStatus(Map<String, Boolean> result, String mirror, String npmRegistry,
-      String pypiMirror, String goProxy, int keys) {
+      String pypiMirror, String goProxy, String mavenMirror, int keys) {
     installed.clear();
     installed.putAll(result);
     mirrorValue.setText(describeMirror(mirror));
     npmRegistryValue.setText(describeNpmRegistry(npmRegistry));
     pypiMirrorValue.setText(describePypiMirror(pypiMirror));
     goProxyValue.setText(describeGoProxy(goProxy));
+    mavenMirrorValue.setText(describeMavenMirror(mavenMirror));
     sshSection.updateStatus(
         Boolean.TRUE.equals(result.get("sshd")), keys, Boolean.TRUE.equals(result.get("sshpw")));
     for (Map.Entry<String, Button> entry : buttons.entrySet())
@@ -345,6 +371,15 @@ public class SettingsActivity extends Activity {
   private void chooseGoProxy() {
     MirrorOption.choose(this, "选择 GO 源（Go 模块代理）", GO_PROXIES, "（GOPROXY）",
         () -> goProxyValue.setText("切换中…"), this::refreshStatus);
+  }
+
+  private static String describeMavenMirror(String url) {
+    return MirrorOption.describeByPrefix(MAVEN_MIRRORS, url, "官方默认（未配置）");
+  }
+
+  private void chooseMavenMirror() {
+    MirrorOption.choose(this, "选择 Maven 源（settings.xml）", MAVEN_MIRRORS, "（mirrorOf=central）",
+        () -> mavenMirrorValue.setText("切换中…"), this::refreshStatus);
   }
 
   private void onToolClicked(Toolbox.Tool tool) {
