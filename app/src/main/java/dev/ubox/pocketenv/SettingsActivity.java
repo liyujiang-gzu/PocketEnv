@@ -658,6 +658,10 @@ public class SettingsActivity extends Activity {
   }
 
   private void requestAllFilesAccess() {
+    if (Build.VERSION.SDK_INT < 30) { 
+       Toast.makeText(this, "Android 10 及以下不需要该权限", Toast.LENGTH_SHORT).show(); 
+       return; 
+     }
     if (Environment.isExternalStorageManager()) {
       Toast.makeText(this, "已授权，新会话中可访问 /sdcard", Toast.LENGTH_SHORT).show();
       return;
