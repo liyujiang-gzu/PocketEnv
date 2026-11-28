@@ -326,23 +326,26 @@ public class MainActivity extends Activity {
         label,
         new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
 
-    Button switchButton = new Button(this);
-    switchButton.setText("切换");
-    switchButton.setMinimumWidth(0);
-    switchButton.setOnClickListener(
-        v -> {
-          attach(session);
-          dialog.dismiss();
-        });
-    row.addView(switchButton);
-
-    Button deleteButton = new Button(this);
-    deleteButton.setText("结束");
-    deleteButton.setTextColor(Theme.DANGER);
-    deleteButton.setMinimumWidth(0);
-    deleteButton.setOnClickListener(v -> deleteSession(session, dialog, refresh));
-    row.addView(deleteButton);
+    row.addView(clickableText("切换", Theme.ACCENT, v -> {
+      attach(session);
+      dialog.dismiss();
+    }));
+    row.addView(clickableText("结束", Theme.DANGER, v -> deleteSession(session, dialog, refresh)));
     return row;
+  }
+
+  /** 会话管理行的可点击文本操作：无按钮背景，仅主题色文字 + 水波纹反馈。 */
+  private TextView clickableText(String label, int color, View.OnClickListener listener) {
+    TextView view = new TextView(this);
+    view.setText(label);
+    view.setTextColor(color);
+    TypedValue ripple = new TypedValue();
+    getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+    view.setBackgroundResource(ripple.resourceId);
+    int pad = (int) (8 * getResources().getDisplayMetrics().density);
+    view.setPadding(pad, pad, pad, pad);
+    view.setOnClickListener(listener);
+    return view;
   }
 
   /** 结束会话；运行中的会话先确认，避免误点终止正在执行的安装或编译。 */
