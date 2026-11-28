@@ -3,6 +3,7 @@ package dev.ubox.pocketenv.runtime;
 import android.content.Context;
 import android.system.ErrnoException;
 import android.system.Os;
+import dev.ubox.pocketenv.util.Io;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -129,7 +130,7 @@ public final class Proot {
         new Thread(
             () -> {
               try (InputStream in = process.getInputStream()) {
-                in.transferTo(output);
+                Io.transferTo(in, output);
               } catch (IOException ignored) {
                 // 进程被结束时流会关闭
               }
@@ -179,7 +180,7 @@ public final class Proot {
     File partial = new File(target.getPath() + ".part");
     try (InputStream in = new FileInputStream(source);
         OutputStream out = new FileOutputStream(partial)) {
-      in.transferTo(out);
+      Io.transferTo(in, out);
     }
     if (!partial.renameTo(target)) throw new IOException("无法写入 " + target);
   }

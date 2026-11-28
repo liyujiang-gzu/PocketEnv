@@ -4,6 +4,7 @@ import android.content.Context;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.StructStat;
+import dev.ubox.pocketenv.util.Io;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -170,7 +171,7 @@ public final class Rootfs {
   private static void addAndroidGroups(File root) throws IOException {
     Set<String> gids = new LinkedHashSet<>();
     try (InputStream in = new FileInputStream("/proc/self/status")) {
-      for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\n"))
+      for (String line : new String(Io.readAllBytes(in), StandardCharsets.UTF_8).split("\n"))
         if (line.startsWith("Groups:"))
           for (String gid : line.substring(7).trim().split("\\s+")) if (!gid.isEmpty()) gids.add(gid);
     }
@@ -302,14 +303,14 @@ public final class Rootfs {
   private static void copyFile(File source, File target) throws IOException {
     try (InputStream in = new FileInputStream(source);
         OutputStream out = new FileOutputStream(target)) {
-      in.transferTo(out);
+      Io.transferTo(in, out);
     }
     chmod(target, source.canExecute() ? 0755 : 0644);
   }
 
   private static String read(File file) {
     try (InputStream in = new FileInputStream(file)) {
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+      return new String(Io.readAllBytes(in), StandardCharsets.UTF_8);
     } catch (IOException missing) {
       return "";
     }
@@ -332,7 +333,7 @@ public final class Rootfs {
 
   private static String readAsset(Context context, String name) throws IOException {
     try (InputStream in = context.getAssets().open(name)) {
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+      return new String(Io.readAllBytes(in), StandardCharsets.UTF_8).trim();
     }
   }
 
@@ -342,7 +343,7 @@ public final class Rootfs {
     target.delete();
     try (InputStream in = context.getAssets().open(asset);
         OutputStream out = new FileOutputStream(target)) {
-      in.transferTo(out);
+      Io.transferTo(in, out);
     }
     chmod(target, mode);
   }

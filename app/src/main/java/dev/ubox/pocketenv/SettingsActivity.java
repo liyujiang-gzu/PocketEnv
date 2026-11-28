@@ -10,6 +10,7 @@ import dev.ubox.pocketenv.ui.SshSection;
 import dev.ubox.pocketenv.ui.Theme;
 import dev.ubox.pocketenv.ui.UiViews;
 import dev.ubox.pocketenv.util.Async;
+import dev.ubox.pocketenv.util.Io;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -539,7 +540,7 @@ public class SettingsActivity extends Activity {
           try (InputStream in = getContentResolver().openInputStream(uri);
               OutputStream out = new FileOutputStream(partial)) {
             if (in == null) throw new IOException("无法读取所选文件");
-            in.transferTo(out);
+            Io.transferTo(in, out);
           }
           archive.delete();
           if (!partial.renameTo(archive)) throw new IOException("无法写入 " + archive);
@@ -571,7 +572,7 @@ public class SettingsActivity extends Activity {
       if (!source.isFile()) return;
       try (InputStream in = new FileInputStream(source);
           OutputStream out = new FileOutputStream(new File(archive.getPath() + ".sha256"))) {
-        in.transferTo(out);
+        Io.transferTo(in, out);
       }
     } catch (Exception ignored) {
       // 无存储权限或文件提供方不支持定位旁文件
