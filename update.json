@@ -1,7 +1,7 @@
 {
-  "versionCode": 2026100,
-  "versionName": "1.0.0",
-  "releaseNotes": "首个版本：在 arm64 Android 上通过 proot 运行完整 Ubuntu 24.04。",
+  "versionCode": 2026101,
+  "versionName": "1.0.1",
+  "releaseNotes": "新增版本更新检查：可切换 Gitee / GitHub 更新源，有新版本时弹窗提示并跳转下载。",
   "releaseUrlGitee": "https://gitee.com/li_yu_jiang/PocketEnv/releases",
   "releaseUrlGithub": "https://github.com/liyujiang-gzu/PocketEnv/releases"
 }
