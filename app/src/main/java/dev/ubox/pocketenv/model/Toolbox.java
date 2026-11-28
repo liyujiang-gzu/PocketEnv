@@ -161,6 +161,8 @@ public final class Toolbox {
         npm("codex", "Codex CLI", "OpenAI · npm @openai/codex", "codex", "@openai/codex"),
         npm("gemini", "Gemini CLI", "Google · npm @google/gemini-cli", "gemini",
             "@google/gemini-cli"),
+        npm("copilot", "Copilot CLI", "GitHub · npm @github/copilot（需 Node.js 22+）", "copilot",
+            "@github/copilot"),
         npm("codebuddy", "CodeBuddy Code", "Tencent · npm @tencent-ai/codebuddy-code",
             "codebuddy", "@tencent-ai/codebuddy-code"),
         curl("qwen", "QwenCode", "Alibaba · 官方脚本安装 QwenCode，装到 ~/.local",
