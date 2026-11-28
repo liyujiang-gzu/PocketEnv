@@ -1,6 +1,9 @@
 package dev.ubox.pocketenv;
 
+import dev.ubox.pocketenv.model.Distro;
+import dev.ubox.pocketenv.runtime.ActiveDistro;
 import dev.ubox.pocketenv.runtime.Rootfs;
+import dev.ubox.pocketenv.runtime.RootfsDownloader;
 import dev.ubox.pocketenv.runtime.TerminalService;
 import dev.ubox.pocketenv.ui.EdgeToEdge;
 import dev.ubox.pocketenv.ui.Theme;
@@ -40,6 +43,7 @@ import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -122,23 +126,73 @@ public class MainActivity extends Activity {
   // ---------------------------------------------------------------- 安装与启动
 
   private void ensureInstalledThenStart() {
-    Rootfs rootfs = new Rootfs(this);
+    Distro distro = ActiveDistro.get(this);
+    Rootfs rootfs = new Rootfs(this, distro);
     if (rootfs.isInstalled()) {
       startTerminal();
       return;
     }
-    showInstall("准备解压 Ubuntu…");
-    Async.run(this, "rootfs-install",
-        () -> {
-          rootfs.install(
-              this,
-              (stage, done, total) ->
-                  runOnUiThread(
-                      () -> {
-                        installStatus.setText(stage);
-                        installProgress.setProgress(
-                            total > 0 ? (int) (done * 1000 / total) : 0);
-                      }));
+    // 没有任何已安装发行版：展示发行版选择（首次使用，或旧数据已重置）
+    if (!anyDistroInstalled()) {
+      showDistroPicker();
+      return;
+    }
+    // 当前默认发行版未装但存在其他发行版，直接启动默认发行版的安装
+    installDistro(distro);
+  }
+
+  /** 是否已有任一发行版安装完成。 */
+  private boolean anyDistroInstalled() {
+    for (Distro d : Distro.values()) if (new Rootfs(this, d).isInstalled()) return true;
+    return false;
+  }
+
+  /** 首次使用的发行版选择弹窗：三系统各自独立 rootfs，选一个下载安装。 */
+  private void showDistroPicker() {
+    Distro[] distros = Distro.values();
+    String[] labels = new String[distros.length];
+    for (int i = 0; i < distros.length; i++) labels[i] = distros[i].title;
+    new AlertDialog.Builder(this)
+        .setTitle("选择发行版")
+        .setItems(labels, (d, which) -> onDistroSelected(distros[which]))
+        .setCancelable(false)
+        .show();
+  }
+
+  /** 选中发行版后：若存在旧版本数据，先提示备份再安装（旧目录不迁移、将被作废）。 */
+  private void onDistroSelected(Distro distro) {
+    File legacy = new File(new File(getFilesDir(), "ubox"), "rootfs");
+    if (legacy.isDirectory()) {
+      new AlertDialog.Builder(this)
+          .setTitle("先备份旧环境数据")
+          .setMessage("检测到旧版本创建的环境数据。本次升级后发行版改为按需下载、各自独立，"
+              + "旧目录不再使用也不会自动迁移，稍后重置或清理时会一并删除。\n\n"
+              + "如 /root 下有需要保留的文件，请先用旧版本的「设置 → 备份」导出，"
+              + "或通过文件管理器（SAF）拷出，再继续安装新发行版。")
+          .setNegativeButton("取消", (d, w) -> finish())
+          .setPositiveButton("我已备份，继续安装", (d, w) -> installDistro(distro))
+          .setCancelable(false)
+          .show();
+    } else {
+      installDistro(distro);
+    }
+  }
+
+  /** 安装选定发行版：先提示旧数据备份，再下载 tarball 并解压。 */
+  private void installDistro(Distro distro) {
+    ActiveDistro.set(this, distro);
+    showInstall("准备安装 " + distro.title + "…");
+    Async.run(this, "rootfs-install", () -> {
+          File tarball = new RootfsDownloader(this, distro).download(
+              (done, total) -> runOnUiThread(() -> {
+                installStatus.setText("正在下载 " + distro.title + " rootfs…");
+                installProgress.setProgress(total > 0 ? (int) (done * 1000 / total) : 0);
+              }));
+          new Rootfs(this, distro).install(this, tarball, (stage, done, total) ->
+              runOnUiThread(() -> {
+                installStatus.setText(stage);
+                installProgress.setProgress(total > 0 ? (int) (done * 1000 / total) : 0);
+              }));
           return null;
         },
         ignored -> startTerminal(),
@@ -379,9 +433,10 @@ public class MainActivity extends Activity {
       for (TerminalSession s : List.copyOf(service.sessions())) service.removeSession(s);
     }
     showInstall("正在删除旧环境…");
+    Distro distro = ActiveDistro.get(this);
     Async.run(this, "rootfs-reset",
         () -> {
-          new Rootfs(this).delete();
+          new Rootfs(this, distro).delete();
           return null;
         },
         ignored -> {

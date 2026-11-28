@@ -33,6 +33,11 @@ public final class Proot {
     return new File(nativeDir, "libproot.so");
   }
 
+  /** guest 里执行命令/登录用的 shell（Alpine 是 /bin/ash，Debian/Ubuntu 是 /bin/bash）。 */
+  public String guestShell() {
+    return rootfs.distro.shell();
+  }
+
   /** proot 依赖 libtalloc.so.2 / libandroid-shmem.so，jniLibs 里只能用 lib*.so 命名，所以复制一份改名。 */
   void prepare() throws IOException {
     copyIfChanged(new File(nativeDir, "libtalloc.so"), new File(rootfs.lib, "libtalloc.so.2"));
@@ -83,14 +88,14 @@ public final class Proot {
     argv.add("HOME=/root");
     argv.add("USER=root");
     argv.add("LOGNAME=root");
-    argv.add("SHELL=/bin/bash");
+    argv.add("SHELL=" + guestShell());
     argv.add("TERM=xterm-256color");
     argv.add("COLORTERM=truecolor");
     argv.add("LANG=C.UTF-8");
     argv.add("TMPDIR=/tmp");
     argv.add("PATH=" + GUEST_PATH);
     if (guestCommand.length == 0) {
-      argv.add("/bin/bash");
+      argv.add(guestShell());
       argv.add("-l");
     } else {
       for (String part : guestCommand) argv.add(part);
@@ -117,10 +122,10 @@ public final class Proot {
     return env.toArray(new String[0]);
   }
 
-  /** 非交互地在 guest 里执行一段 bash 脚本，stdout/stderr 合并读取。 */
+  /** 非交互地在 guest 里执行一段 shell 脚本，stdout/stderr 合并读取。 */
   String run(String script, long timeoutMs) throws IOException, InterruptedException {
     ProcessBuilder builder =
-        new ProcessBuilder(argv("/bin/bash", "-c", script)).redirectErrorStream(true);
+        new ProcessBuilder(argv(guestShell(), "-c", script)).redirectErrorStream(true);
     builder.redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")));
     UbuntuProcess.applyEnvironment(builder, this);
     Process process = builder.start();

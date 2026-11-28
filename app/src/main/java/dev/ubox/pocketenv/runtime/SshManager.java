@@ -46,7 +46,7 @@ public final class SshManager {
   }
 
   File logFile() {
-    return new File(new Rootfs(context).base, "sshd.log");
+    return new File(new Rootfs(context, ActiveDistro.get(context)).base, "sshd.log");
   }
 
   boolean isRunning() {
@@ -87,7 +87,7 @@ public final class SshManager {
   /** 恢复上次会话的 SSH 开关状态（前台服务重建时）。 */
   void autostartIfNeeded() {
     if (!context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_SSH, false)
-        || !new Rootfs(context).isInstalled()) return;
+        || !new Rootfs(context, ActiveDistro.get(context)).isInstalled()) return;
     try {
       start();
     } catch (IOException error) {

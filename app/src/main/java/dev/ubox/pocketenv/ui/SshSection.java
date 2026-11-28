@@ -1,6 +1,7 @@
 package dev.ubox.pocketenv.ui;
 
 import dev.ubox.pocketenv.SettingsActivity;
+import dev.ubox.pocketenv.runtime.ActiveDistro;
 import dev.ubox.pocketenv.runtime.Rootfs;
 import dev.ubox.pocketenv.runtime.TerminalService;
 import dev.ubox.pocketenv.runtime.UbuntuProcess;
@@ -262,7 +263,7 @@ public final class SshSection {
           Toast.LENGTH_LONG).show();
       return;
     }
-    File ssh = new File(new Rootfs(host).rootfs, "root/.ssh");
+    File ssh = new File(new Rootfs(host, ActiveDistro.get(host)).rootfs, "root/.ssh");
     File file = new File(ssh, "authorized_keys");
     try {
       ssh.mkdirs();

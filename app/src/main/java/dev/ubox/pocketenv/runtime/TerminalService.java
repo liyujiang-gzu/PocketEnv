@@ -84,12 +84,12 @@ public class TerminalService extends Service {
   /** guestCommand 为 null 时启动登录 shell，否则执行这条命令（用于设置页的安装任务）。 */
   public TerminalSession createSession(TerminalSessionClient client, String name, String guestCommand)
       throws IOException {
-    Rootfs rootfs = new Rootfs(this);
+    Rootfs rootfs = new Rootfs(this, ActiveDistro.get(this));
     rootfs.refreshGuestFiles(this);
     Proot proot = new Proot(this, rootfs);
     proot.prepare();
     String[] argv =
-        guestCommand == null ? proot.argv() : proot.argv("/bin/bash", "-lc", guestCommand);
+        guestCommand == null ? proot.argv() : proot.argv(proot.guestShell(), "-lc", guestCommand);
     TerminalSession session =
         new TerminalSession(
             argv[0], rootfs.base.getAbsolutePath(), argv, proot.environment(), 5000, client);

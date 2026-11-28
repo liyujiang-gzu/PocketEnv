@@ -67,11 +67,6 @@ android {
         }
     }
 
-    androidResources {
-        // rootfs 已经是 gzip，命名为 .bin 防止 aapt 解压/再压缩
-        noCompress += ['bin']
-    }
-
     buildFeatures {
         // 生成 BuildConfig.VERSION_NAME / VERSION_CODE，供设置页显示版本
         buildConfig true
@@ -82,15 +77,6 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
-
-def rootfsAsset = file('src/main/assets/rootfs.tar.gz.bin')
-tasks.register('checkRootfs') {
-    doLast {
-        if (!rootfsAsset.isFile())
-            throw new GradleException('缺少 rootfs，请先运行 scripts/fetch-rootfs.sh')
-    }
-}
-tasks.named('preBuild') { dependsOn 'checkRootfs' }
 
 dependencies {
     implementation 'com.termux.termux-app:terminal-view:0.118.0'
